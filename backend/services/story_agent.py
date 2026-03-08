@@ -11,6 +11,26 @@ class StoryAgent:
         self.model = genai.GenerativeModel('gemini-2.0-flash')
         self.analysis_model = genai.GenerativeModel('gemini-2.0-flash')
 
+    def _parse_json(self, response_text: str, fallback_data: dict) -> dict:
+        """
+        Robustly parses JSON from LLM response, handling common formatting quirks.
+        """
+        try:
+            # Clean up potential markdown blocks if they slip through despite JSON mode
+            content = response_text.strip()
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0].strip()
+            elif content.startswith("```") and content.endswith("```"):
+                content = content[3:-3].strip()
+            
+            result = json.loads(content)
+            if isinstance(result, list) and len(result) > 0:
+                return result[0] if isinstance(result[0], dict) else fallback_data
+            return result if isinstance(result, dict) else fallback_data
+        except (json.JSONDecodeError, IndexError) as e:
+            print(f"Error parsing JSON response: {e}\nRaw Response: {response_text}")
+            return fallback_data
+
     async def analyze_drawing(self, image_data: bytes) -> CharacterProfile:
         """
         Analyzes the uploaded sketch to create a structured character profile.
@@ -27,15 +47,16 @@ class StoryAgent:
         """
         
         try:
-            response = self.model.generate_content([
-                prompt,
-                {"mime_type": "image/png", "data": image_data}
-            ])
-            content = response.text
-            if "```json" in content:
-                content = content.split("```json")[1].split("```")[0].strip()
-            data = json.loads(content)
-            return CharacterProfile(**data)
+            response = self.model.generate_content(
+                [prompt, {"mime_type": "image/png", "data": image_data}],
+                generation_config={"response_mime_type": "application/json"}
+            )
+            data = self._parse_json(response.text, {})
+            return CharacterProfile(
+                name=data.get("name", "Hero"),
+                description=data.get("description", "A brave new friend."),
+                visualTraits=data.get("visualTraits", ["kind eyes", "cheerful"])
+            )
         except Exception as e:
             print(f"Error during AI analysis or parsing: {e}")
             return CharacterProfile(name="Hero", description="A brave new friend.", visualTraits=["kind eyes", "cheerful"])
@@ -56,17 +77,17 @@ class StoryAgent:
         "detailedTraits": (list of specific visual details for consistency)
         """
         
-        response = self.model.generate_content(prompt)
         try:
-            content = response.text
-            if "```json" in content:
-                content = content.split("```json")[1].split("```")[0].strip()
-            data = json.loads(content)
+            response = self.model.generate_content(
+                prompt,
+                generation_config={"response_mime_type": "application/json"}
+            )
+            data = self._parse_json(response.text, {})
             
             # Ensure detailedTraits is a list of strings (AI sometimes returns objects)
             traits = data.get("detailedTraits", [])
+            sanitized_traits = []
             if isinstance(traits, list):
-                sanitized_traits = []
                 for t in traits:
                     if isinstance(t, dict):
                         # Convert {'trait': 'name', 'description': 'val'} to "name: val"
@@ -75,9 +96,11 @@ class StoryAgent:
                         sanitized_traits.append(f"{name}: {desc}" if desc else name)
                     else:
                         sanitized_traits.append(str(t))
-                data["detailedTraits"] = sanitized_traits
-                
-            return data
+            
+            return {
+                "visualPrompt": data.get("visualPrompt", f"A friendly character named {profile.name}, {profile.description}, vibrant colors, high quality animation style."),
+                "detailedTraits": sanitized_traits or profile.visualTraits
+            }
         except Exception as e:
             print(f"Error generating character prompt: {e}")
             return {
@@ -139,24 +162,22 @@ class StoryAgent:
         Keep the character's traits: {", ".join(state.characterProfile.visualTraits)}.
         """
 
-        response = self.model.generate_content(prompt)
-        
         try:
-            content = response.text
-            if "```json" in content:
-                content = content.split("```json")[1].split("```")[0].strip()
-            data = json.loads(content)
+            response = self.model.generate_content(
+                prompt,
+                generation_config={"response_mime_type": "application/json"}
+            )
+            data = self._parse_json(response.text, {})
             
-            beat = StoryBeat(
+            return StoryBeat(
                 id=str(uuid4()),
-                sceneTitle=data["sceneTitle"],
-                narration=data["narration"],
+                sceneTitle=data.get("sceneTitle", "A New Chapter"),
+                narration=data.get("narration", "Something magical happens!"),
                 audioUrl="", # To be filled by TTS or real-time voice
-                imagePrompt=data["imagePrompt"],
+                imagePrompt=data.get("imagePrompt", "A magical scene in a children's storybook"),
                 imageUrl="", # To be filled by ImageGen
                 timestamp=0.0
             )
-            return beat
         except Exception as e:
             print(f"Error generating beat: {e}")
             return StoryBeat(
@@ -186,12 +207,12 @@ class StoryAgent:
         "removedFacts": (list of facts that are no longer true)
         """
         
-        response = self.model.generate_content(prompt)
         try:
-            content = response.text
-            if "```json" in content:
-                content = content.split("```json")[1].split("```")[0].strip()
-            data = json.loads(content)
+            response = self.model.generate_content(
+                prompt,
+                generation_config={"response_mime_type": "application/json"}
+            )
+            data = self._parse_json(response.text, {})
             
             if data.get("newSetting"):
                 state.currentSetting = data["newSetting"]
@@ -206,7 +227,6 @@ class StoryAgent:
             for fact in data.get("removedFacts", []):
                 if fact in state.continuityFacts:
                     state.continuityFacts.remove(fact)
-                    
         except Exception as e:
             print(f"Error updating narrative: {e}")
     async def generate_movie_plan(self, state: StoryState) -> MoviePlan:
@@ -233,21 +253,21 @@ class StoryAgent:
         Return JSON with a "shots" list.
         """
         
-        response = self.model.generate_content(prompt)
         try:
-            content = response.text
-            if "```json" in content:
-                content = content.split("```json")[1].split("```")[0].strip()
-            data = json.loads(content)
+            response = self.model.generate_content(
+                prompt,
+                generation_config={"response_mime_type": "application/json"}
+            )
+            data = self._parse_json(response.text, {})
             
             shots = []
             for s in data.get("shots", []):
                 shots.append(ShotPlan(
                     id=str(uuid4()),
-                    type=s["type"],
+                    type=s.get("type", "adventure"),
                     bgImageUrl="", # To be filled
-                    narration=s["narration"],
-                    motionDirection=s["motionDirection"],
+                    narration=s.get("narration", "The story continues..."),
+                    motionDirection=s.get("motionDirection", "zoom-in"),
                     bgPrompt=s.get("bgPrompt", "a beautiful background")
                 ))
             return MoviePlan(shots=shots)
