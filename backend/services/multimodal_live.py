@@ -68,8 +68,21 @@ class MultimodalLiveBridge:
                             }
                             await gemini_ws.send(json.dumps(realtime_msg))
                         elif "text" in message and message["text"]:
-                            await gemini_ws.send(message["text"])
-                except Exception as e:
+                            # Sanitize and wrap text into the Gemini protocol structure 
+                            # to prevent clients from sending arbitrary protocol-level commands.
+                            safe_text = str(message["text"])[:2000]
+                            realtime_text = {
+                                "clientContent": {
+                                    "turns": [
+                                        {
+                                            "role": "user",
+                                            "parts": [{"text": safe_text}]
+                                        }
+                                    ]
+                                }
+                            }
+                            await gemini_ws.send(json.dumps(realtime_text))
+                except (Exception, websockets.exceptions.ConnectionClosed) as e:
                     print(f"ℹ️ Client connection ended: {e}")
                 finally:
                     if gemini_task and not gemini_task.done():
