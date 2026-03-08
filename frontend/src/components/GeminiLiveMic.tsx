@@ -9,7 +9,6 @@ interface GeminiLiveMicProps {
 }
 
 const TARGET_SAMPLE_RATE = 16000;
-const BUFFER_SIZE = 4096;
 
 export const GeminiLiveMic: React.FC<GeminiLiveMicProps> = ({ sessionId, onStop }) => {
     const [isActive, setIsActive] = useState(false);
@@ -17,7 +16,7 @@ export const GeminiLiveMic: React.FC<GeminiLiveMicProps> = ({ sessionId, onStop 
 
     const socketRef = useRef<WebSocket | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
-    const processorRef = useRef<ScriptProcessorNode | null>(null);
+    const processorRef = useRef<AudioWorkletNode | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const recognitionRef = useRef<any>(null);
     const transcriptRef = useRef<string>('');  // Keep ref in sync for closure access
@@ -108,29 +107,28 @@ export const GeminiLiveMic: React.FC<GeminiLiveMicProps> = ({ sessionId, onStop 
             const ws = new WebSocket(`ws://localhost:8000/ws/live/${sessionId}`);
             socketRef.current = ws;
 
-            ws.onopen = () => {
+            ws.onopen = async () => {
                 console.log("✅ Gemini WebSocket connected");
                 try {
                     const audioCtx = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE });
                     audioContextRef.current = audioCtx;
+
+                    // Load the AudioWorklet module
+                    await audioCtx.audioWorklet.addModule('/worklets/audio-processor.js');
+
                     const source = audioCtx.createMediaStreamSource(stream);
-                    const processor = audioCtx.createScriptProcessor(BUFFER_SIZE, 1, 1);
+                    const processor = new AudioWorkletNode(audioCtx, 'audio-processor');
                     processorRef.current = processor;
 
-                    processor.onaudioprocess = (e) => {
-                        if (ws.readyState !== WebSocket.OPEN) return;
-                        const inputData = e.inputBuffer.getChannelData(0);
-                        const int16Buffer = new Int16Array(inputData.length);
-                        for (let i = 0; i < inputData.length; i++) {
-                            const s = Math.max(-1, Math.min(1, inputData[i]));
-                            int16Buffer[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                    processor.port.onmessage = (event) => {
+                        if (ws.readyState === WebSocket.OPEN) {
+                            ws.send(event.data);
                         }
-                        ws.send(int16Buffer.buffer);
                     };
 
                     source.connect(processor);
                     processor.connect(audioCtx.destination);
-                    console.log("🎙️ PCM audio streaming started at 16kHz");
+                    console.log("🎙️ AudioWorklet PCM streaming started at 16kHz");
                 } catch (err) {
                     console.error("❌ Audio setup failed:", err);
                     cleanup();
@@ -163,8 +161,8 @@ export const GeminiLiveMic: React.FC<GeminiLiveMicProps> = ({ sessionId, onStop 
             <button
                 onClick={toggleMic}
                 className={`group relative p-8 rounded-full shadow-[0_0_50px_rgba(0,0,0,0.1)] transition-all hover:scale-110 active:scale-95 ${isActive
-                        ? 'bg-red-500 text-white'
-                        : 'bg-white text-purple-600 border-4 border-purple-50'
+                    ? 'bg-red-500 text-white'
+                    : 'bg-white text-purple-600 border-4 border-purple-50'
                     }`}
             >
                 {isActive && (

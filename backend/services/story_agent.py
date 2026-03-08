@@ -26,20 +26,18 @@ class StoryAgent:
         Focus on identifying the core creature/object and its personality.
         """
         
-        response = self.model.generate_content([
-            prompt,
-            {"mime_type": "image/png", "data": image_data}
-        ])
-        
-        # Extract JSON from response (simple approach for hackathon)
         try:
+            response = self.model.generate_content([
+                prompt,
+                {"mime_type": "image/png", "data": image_data}
+            ])
             content = response.text
             if "```json" in content:
                 content = content.split("```json")[1].split("```")[0].strip()
             data = json.loads(content)
             return CharacterProfile(**data)
         except Exception as e:
-            print(f"Error parsing profile: {e}")
+            print(f"Error during AI analysis or parsing: {e}")
             return CharacterProfile(name="Hero", description="A brave new friend.", visualTraits=["kind eyes", "cheerful"])
 
     async def generate_character_prompt(self, profile: CharacterProfile) -> dict:
@@ -64,6 +62,21 @@ class StoryAgent:
             if "```json" in content:
                 content = content.split("```json")[1].split("```")[0].strip()
             data = json.loads(content)
+            
+            # Ensure detailedTraits is a list of strings (AI sometimes returns objects)
+            traits = data.get("detailedTraits", [])
+            if isinstance(traits, list):
+                sanitized_traits = []
+                for t in traits:
+                    if isinstance(t, dict):
+                        # Convert {'trait': 'name', 'description': 'val'} to "name: val"
+                        name = t.get("trait") or t.get("name") or "Detail"
+                        desc = t.get("description") or t.get("value") or ""
+                        sanitized_traits.append(f"{name}: {desc}" if desc else name)
+                    else:
+                        sanitized_traits.append(str(t))
+                data["detailedTraits"] = sanitized_traits
+                
             return data
         except Exception as e:
             print(f"Error generating character prompt: {e}")
