@@ -219,18 +219,22 @@ class StoryAgent:
             data = self._parse_json(response.text, {})
             
             if data.get("newSetting"):
-                state.currentSetting = data["newSetting"]
-                plan.currentSetting = data["newSetting"]
+                clean_setting = str(data["newSetting"])[:100].strip()
+                state.currentSetting = clean_setting
+                plan.currentSetting = clean_setting
             if data.get("newTone"):
-                state.narrativeTone = data["newTone"]
-                plan.narrativeTone = data["newTone"]
+                clean_tone = str(data["newTone"])[:100].strip()
+                state.narrativeTone = clean_tone
+                plan.narrativeTone = clean_tone
             
             for fact in data.get("addedFacts", []):
-                if fact not in state.continuityFacts:
-                    state.continuityFacts.append(fact)
+                clean_fact = str(fact)[:200].strip()
+                if clean_fact and clean_fact not in state.continuityFacts:
+                    state.continuityFacts.append(clean_fact)
             for fact in data.get("removedFacts", []):
-                if fact in state.continuityFacts:
-                    state.continuityFacts.remove(fact)
+                target_fact = str(fact).strip()
+                if target_fact in state.continuityFacts:
+                    state.continuityFacts.remove(target_fact)
         except Exception as e:
             print(f"Error updating narrative: {e}")
     async def generate_movie_plan(self, state: StoryState) -> MoviePlan:
