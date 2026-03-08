@@ -7,13 +7,35 @@ import { AnimatedCharacter } from '@/components/AnimatedCharacter';
 import { GeminiLiveMic } from '@/components/GeminiLiveMic';
 import { Loader2 } from 'lucide-react';
 
+interface CharacterProfile {
+  name: string;
+  description: string;
+  visualTraits: string[];
+}
+
+interface CharacterModel {
+  imageUrl: string;
+  traits: string[];
+  basePrompt: string;
+}
+
+interface StoryBeat {
+  id: string;
+  sceneTitle: string;
+  narration: string;
+  audioUrl: string;
+  imagePrompt: string;
+  imageUrl: string;
+  timestamp: number;
+}
+
 export default function Home() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [characterName, setCharacterName] = useState("Your Friend");
-  const [characterModel, setCharacterModel] = useState<any>(null);
+  const [characterModel, setCharacterModel] = useState<CharacterModel | null>(null);
   const [isTalking, setIsTalking] = useState(false);
-  const [beats, setBeats] = useState<any[]>([]);
+  const [beats, setBeats] = useState<StoryBeat[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [movieUrl, setMovieUrl] = useState<string | null>(null);
@@ -31,9 +53,10 @@ export default function Home() {
       }
       const data = await res.json();
       setMovieUrl(data.movieUrl);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Export failed:", error);
-      alert(`Oops! Making the movie failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      alert(`Oops! Making the movie failed: ${message}`);
     } finally {
       setIsExporting(false);
     }
@@ -81,7 +104,8 @@ export default function Home() {
       }
 
       const data = await analyzeRes.json();
-      const { profile, model } = data;
+      const profile: CharacterProfile = data.profile;
+      const model: CharacterModel = data.model;
       setCharacterName(profile.name || "A New Friend");
       setCharacterModel(model);
 
@@ -105,7 +129,7 @@ export default function Home() {
       if (!beatRes.ok) {
         throw new Error(`Beat failed: ${beatRes.status}`);
       }
-      const beat = await beatRes.json();
+      const beat: StoryBeat = await beatRes.json();
       if (beat && beat.id) {
         setBeats(prev => [...prev, beat]);
       }
