@@ -6,12 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-from schemas import StoryState, StoryPlan, CharacterProfile, StoryBeat, CharacterModel
+from schemas import StoryState, StoryPlan, CharacterProfile, StoryBeat, CharacterModel, MoviePlan, ShotPlan
 from services.story_agent import StoryAgent
 from services.image_gen import ImageGenService
 from services.storage import StorageService
 from services.multimodal_live import MultimodalLiveBridge
 from services.video_engine import VideoEngine
+from gtts import gTTS
 
 load_dotenv()
 
@@ -194,9 +195,6 @@ async def export_movie(session_id: str):
     state = sessions[session_id]
     if not state.history:
         return {"error": "No story beats to export"}
-    
-    from gtts import gTTS
-    from schemas import MoviePlan, ShotPlan
     
     # Build movie shots DIRECTLY from the user's actual story beats
     # This ensures the movie matches exactly what the user created
