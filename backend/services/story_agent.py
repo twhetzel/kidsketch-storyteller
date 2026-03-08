@@ -1,15 +1,14 @@
 import os
 import json
-import google.generativeai as genai
+from google import genai
 from uuid import uuid4
 from typing import Optional
 from schemas import StoryState, StoryPlan, CharacterProfile, StoryBeat, CharacterModel, MoviePlan, ShotPlan
 
 class StoryAgent:
     def __init__(self, api_key: str):
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-2.0-flash')
-        self.analysis_model = genai.GenerativeModel('gemini-2.0-flash')
+        self.client = genai.Client(api_key=api_key, http_options={'api_version': 'v1alpha'})
+        self.model_id = 'gemini-2.0-flash'
 
     def _parse_json(self, response_text: str, fallback_data: dict) -> dict:
         """
@@ -47,9 +46,12 @@ class StoryAgent:
         """
         
         try:
-            response = await self.model.generate_content_async(
-                [prompt, {"mime_type": "image/png", "data": image_data}],
-                generation_config={"response_mime_type": "application/json"}
+            response = await self.client.aio.models.generate_content(
+                model=self.model_id,
+                contents=[prompt, genai.types.Part.from_bytes(data=image_data, mime_type="image/png")],
+                config=genai.types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
             )
             data = self._parse_json(response.text, {})
             # Sanitize untrusted fields to prevent second-order prompt injection
@@ -83,9 +85,12 @@ class StoryAgent:
         """
         
         try:
-            response = await self.model.generate_content_async(
-                prompt,
-                generation_config={"response_mime_type": "application/json"}
+            response = await self.client.aio.models.generate_content(
+                model=self.model_id,
+                contents=prompt,
+                config=genai.types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
             )
             data = self._parse_json(response.text, {})
             
@@ -163,9 +168,12 @@ class StoryAgent:
             """
 
         try:
-            response = await self.model.generate_content_async(
-                prompt,
-                generation_config={"response_mime_type": "application/json"}
+            response = await self.client.aio.models.generate_content(
+                model=self.model_id,
+                contents=prompt,
+                config=genai.types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
             )
             data = self._parse_json(response.text, {})
             
@@ -212,9 +220,12 @@ class StoryAgent:
         """
         
         try:
-            response = await self.model.generate_content_async(
-                prompt,
-                generation_config={"response_mime_type": "application/json"}
+            response = await self.client.aio.models.generate_content(
+                model=self.model_id,
+                contents=prompt,
+                config=genai.types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
             )
             data = self._parse_json(response.text, {})
             
@@ -237,6 +248,7 @@ class StoryAgent:
                     state.continuityFacts.remove(target_fact)
         except Exception as e:
             print(f"Error updating narrative: {e}")
+
     async def generate_movie_plan(self, state: StoryState) -> MoviePlan:
         """
         Creates a 4-shot cinematic movie plan based on the story session.
@@ -268,9 +280,12 @@ class StoryAgent:
         """
         
         try:
-            response = await self.model.generate_content_async(
-                prompt,
-                generation_config={"response_mime_type": "application/json"}
+            response = await self.client.aio.models.generate_content(
+                model=self.model_id,
+                contents=prompt,
+                config=genai.types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
             )
             data = self._parse_json(response.text, {})
             
