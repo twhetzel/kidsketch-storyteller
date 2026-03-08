@@ -15,6 +15,7 @@ class VideoEngine:
         Creates an animated movie from a MoviePlan using motion effects.
         """
         segment_files = []
+        last_valid_index = -1  # Track which shot is truly the last
         
         for i, shot in enumerate(movie_plan.shots):
             if not shot.bgImageUrl:
@@ -61,21 +62,30 @@ class VideoEngine:
 
             # 4. Create Animated Segment for this shot
             segment_path = os.path.join(self.temp_dir, f"{session_id}_shot_{i}.mp4")
+            is_last = (i == len(movie_plan.shots) - 1)
             
             # Apply motion — calculate frames based on actual duration (25fps)
             fps = 25
             num_frames = int(shot_duration * fps)
+            fade_duration = 1.0  # seconds for fadeout on last shot
             
             if shot.motionDirection == 'zoom-in':
-                filter_complex = f"zoompan=z='min(zoom+0.0015,1.5)':d={num_frames}:s=1280x720:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)',fps={fps}"
+                motion_filter = f"zoompan=z='min(zoom+0.0015,1.5)':d={num_frames}:s=1280x720:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)',fps={fps}"
             elif shot.motionDirection == 'zoom-out':
-                filter_complex = f"zoompan=z='max(1.5-0.0015*on,1)':d={num_frames}:s=1280x720:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)',fps={fps}"
+                motion_filter = f"zoompan=z='max(1.5-0.0015*on,1)':d={num_frames}:s=1280x720:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)',fps={fps}"
             elif shot.motionDirection == 'pan-left':
-                filter_complex = f"zoompan=z=1.5:x='if(lte(on,0),0,on*2)':y='ih/2-(ih/zoom/2)':d={num_frames}:s=1280x720,fps={fps}"
+                motion_filter = f"zoompan=z=1.5:x='if(lte(on,0),0,on*2)':y='ih/2-(ih/zoom/2)':d={num_frames}:s=1280x720,fps={fps}"
             elif shot.motionDirection == 'pan-right':
-                filter_complex = f"zoompan=z=1.5:x='iw-iw/zoom-on*2':y='ih/2-(ih/zoom/2)':d={num_frames}:s=1280x720,fps={fps}"
+                motion_filter = f"zoompan=z=1.5:x='iw-iw/zoom-on*2':y='ih/2-(ih/zoom/2)':d={num_frames}:s=1280x720,fps={fps}"
             else:
-                filter_complex = f"zoompan=z=1.1:d={num_frames}:s=1280x720,fps={fps}"
+                motion_filter = f"zoompan=z=1.1:d={num_frames}:s=1280x720,fps={fps}"
+
+            # Add fadeout on the last story card
+            if is_last:
+                fade_start = max(shot_duration - fade_duration, 0)
+                filter_complex = f"{motion_filter},fade=t=out:st={fade_start:.2f}:d={fade_duration:.2f}"
+            else:
+                filter_complex = motion_filter
 
             cmd = [
                 'ffmpeg', '-y',
@@ -98,13 +108,35 @@ class VideoEngine:
             proc = subprocess.run(cmd, capture_output=True, text=True)
             if proc.returncode == 0:
                 segment_files.append(segment_path)
+                last_valid_index = i
             else:
-                print(f"Shot {i} failed: {proc.stderr}")
+                print(f"Shot {i} failed: {proc.stderr[-500:]}")
 
         if not segment_files:
             raise ValueError("No segments generated for movie")
 
-        # 3. Concatenate Segments
+        # --- Black pause (1s) ---
+        pause_path = os.path.join(self.temp_dir, f"{session_id}_pause.mp4")
+        subprocess.run([
+            'ffmpeg', '-y', '-f', 'lavfi', '-i', 'color=c=black:s=1280x720:r=25:d=1',
+            '-c:v', 'libx264', '-pix_fmt', 'yuv420p', pause_path
+        ], capture_output=True)
+
+        # --- End Card (4s) — generated with Pillow for reliable text rendering ---
+        end_card_png = os.path.join(self.temp_dir, f"{session_id}_endcard.png")
+        end_card_path = os.path.join(self.temp_dir, f"{session_id}_endcard.mp4")
+        self._create_end_card_image(end_card_png)
+        subprocess.run([
+            'ffmpeg', '-y',
+            '-loop', '1', '-i', end_card_png,
+            '-vf', 'fade=t=in:st=0:d=1,fps=25',
+            '-c:v', 'libx264', '-t', '4', '-pix_fmt', 'yuv420p',
+            end_card_path
+        ], capture_output=True)
+
+        segment_files.extend([pause_path, end_card_path])
+
+        # Concatenate all segments
         concat_list = os.path.join(self.temp_dir, f"{session_id}_shots.txt")
         with open(concat_list, "w") as f:
             for seg in segment_files:
@@ -124,3 +156,46 @@ class VideoEngine:
     async def create_movie(self, session_id: str, history: List[StoryBeat], output_path: str) -> str:
         # Keep old method as fallback or for legacy use
         pass
+
+    def _create_end_card_image(self, output_path: str, width: int = 1280, height: int = 720):
+        """Generate a 1280x720 end card PNG using Pillow."""
+        from PIL import Image, ImageDraw, ImageFont
+
+        img = Image.new("RGB", (width, height), color=(0, 0, 0))
+        draw = ImageDraw.Draw(img)
+
+        # Try system fonts in order of preference
+        font_paths = [
+            "/System/Library/Fonts/SFNS.ttf",
+            "/System/Library/Fonts/SFNSRounded.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",  # Linux fallback
+        ]
+
+        def load_font(size):
+            for fp in font_paths:
+                if os.path.exists(fp):
+                    try:
+                        return ImageFont.truetype(fp, size)
+                    except Exception:
+                        pass
+            return ImageFont.load_default()
+
+        title_font = load_font(72)
+        subtitle_font = load_font(30)
+
+        title = "Created with KidSketch"
+        subtitle = "From drawing to living story"
+
+        # Center the title
+        t_bbox = draw.textbbox((0, 0), title, font=title_font)
+        t_w = t_bbox[2] - t_bbox[0]
+        t_h = t_bbox[3] - t_bbox[1]
+        draw.text(((width - t_w) / 2, height / 2 - t_h - 20), title, font=title_font, fill=(255, 255, 255))
+
+        # Center the subtitle
+        s_bbox = draw.textbbox((0, 0), subtitle, font=subtitle_font)
+        s_w = s_bbox[2] - s_bbox[0]
+        draw.text(((width - s_w) / 2, height / 2 + 20), subtitle, font=subtitle_font, fill=(180, 180, 180))
+
+        img.save(output_path)
+        print(f"✅ End card image saved: {output_path}")
