@@ -1,3 +1,4 @@
+import asyncio
 import os
 from google.cloud import aiplatform
 from vertexai.preview.vision_models import ImageGenerationModel
@@ -13,7 +14,9 @@ class ImageGenService:
         Includes a fallback for quota limits or other errors.
         """
         try:
-            response = self.model.generate_images(
+            # Offload blocking CPU/Network call to a thread
+            response = await asyncio.to_thread(
+                self.model.generate_images,
                 prompt=prompt,
                 number_of_images=1,
                 language="en",
@@ -21,7 +24,12 @@ class ImageGenService:
             )
             
             if response.images:
-                response.images[0].save(output_path, include_generation_parameters=False)
+                # Also offload the blocking file write
+                await asyncio.to_thread(
+                    response.images[0].save,
+                    output_path, 
+                    include_generation_parameters=False
+                )
                 return output_path
         except Exception as e:
             print(f"Image Generation failed: {e}")

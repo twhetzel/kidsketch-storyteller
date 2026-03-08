@@ -47,7 +47,7 @@ class StoryAgent:
         """
         
         try:
-            response = self.model.generate_content(
+            response = await self.model.generate_content_async(
                 [prompt, {"mime_type": "image/png", "data": image_data}],
                 generation_config={"response_mime_type": "application/json"}
             )
@@ -78,7 +78,7 @@ class StoryAgent:
         """
         
         try:
-            response = self.model.generate_content(
+            response = await self.model.generate_content_async(
                 prompt,
                 generation_config={"response_mime_type": "application/json"}
             )
@@ -163,7 +163,7 @@ class StoryAgent:
         """
 
         try:
-            response = self.model.generate_content(
+            response = await self.model.generate_content_async(
                 prompt,
                 generation_config={"response_mime_type": "application/json"}
             )
@@ -208,7 +208,7 @@ class StoryAgent:
         """
         
         try:
-            response = self.model.generate_content(
+            response = await self.model.generate_content_async(
                 prompt,
                 generation_config={"response_mime_type": "application/json"}
             )
@@ -254,7 +254,7 @@ class StoryAgent:
         """
         
         try:
-            response = self.model.generate_content(
+            response = await self.model.generate_content_async(
                 prompt,
                 generation_config={"response_mime_type": "application/json"}
             )
