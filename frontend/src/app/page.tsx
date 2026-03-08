@@ -24,7 +24,7 @@ export default function Home() {
     setIsExporting(true);
     setMovieUrl(null);
     try {
-      const res = await fetch(`http://localhost:8000/session/${sessionId}/export`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/session/${sessionId}/export`);
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.detail || `Export failed: ${res.status}`);
@@ -55,7 +55,7 @@ export default function Home() {
     setIsAnalyzing(true);
     try {
       // 1. Initialize Session
-      const initRes = await fetch('http://localhost:8000/session/init', {
+      const initRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/session/init`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sketch_url: "pending" })
@@ -71,7 +71,7 @@ export default function Home() {
 
       // 2. Upload and Analyze
       const blob = await (await fetch(imageSrc)).blob();
-      const analyzeRes = await fetch(`http://localhost:8000/session/${sessionId}/analyze`, {
+      const analyzeRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/session/${sessionId}/analyze`, {
         method: 'POST',
         body: blob,
       });
@@ -98,8 +98,8 @@ export default function Home() {
     setIsGenerating(true);
     try {
       const url = instruction
-        ? `http://localhost:8000/session/${sid}/beat?user_instruction=${encodeURIComponent(instruction)}`
-        : `http://localhost:8000/session/${sid}/beat`;
+        ? `${process.env.NEXT_PUBLIC_API_URL}/session/${sid}/beat?user_instruction=${encodeURIComponent(instruction)}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/session/${sid}/beat`;
 
       const beatRes = await fetch(url, { method: 'POST' });
       if (!beatRes.ok) {

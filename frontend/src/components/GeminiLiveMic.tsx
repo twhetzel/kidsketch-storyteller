@@ -104,7 +104,9 @@ export const GeminiLiveMic: React.FC<GeminiLiveMicProps> = ({ sessionId, onStop 
             }
 
             // --- Gemini Live WebSocket for voice interaction ---
-            const ws = new WebSocket(`ws://localhost:8000/ws/live/${sessionId}`);
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            const wsUrl = apiUrl.replace(/^http/, 'ws') + `/ws/live/${sessionId}`;
+            const ws = new WebSocket(wsUrl);
             socketRef.current = ws;
 
             ws.onopen = async () => {
