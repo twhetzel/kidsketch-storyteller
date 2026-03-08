@@ -10,3 +10,6 @@ python-dotenv
 websockets
 ffmpeg-python
 aiohttp
+gtts
+requests
+Pillow

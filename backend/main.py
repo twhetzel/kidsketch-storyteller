@@ -33,6 +33,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+
 # In-memory session store: sessionId -> StoryState
 sessions = {}
 
@@ -92,7 +94,7 @@ async def analyze_sketch(session_id: str, request: Request):
         char_url = await storage_service.upload_file(local_char_path, remote_char_path)
     else:
         # Fallback: Use the original sketch if Imagen 3 fails
-        char_url = state.sourceSketchUrl if state.sourceSketchUrl != "pending" else "https://placehold.co/600x400?text=Drawing+in+progress...🎨"
+        char_url = sessions[session_id].sourceSketchUrl if sessions[session_id].sourceSketchUrl != "pending" else "https://placehold.co/600x400?text=Drawing+in+progress...🎨"
     
     # 5. Store CharacterModel
     char_model = CharacterModel(
