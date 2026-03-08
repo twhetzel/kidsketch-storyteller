@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+google-cloud-storage
+google-cloud-firestore
+google-cloud-aiplatform
+google-generativeai
+python-dotenv
+websockets
+ffmpeg-python
+aiohttp
