@@ -27,7 +27,7 @@ video_engine = VideoEngine(storage_service=storage_service)
 # CORS for Next.js
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # For hackathon, allow all. Restrict later if needed.
+    allow_origins=os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(","), # For hackathon, allow all. Restrict later if needed.
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
