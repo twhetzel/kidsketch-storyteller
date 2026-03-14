@@ -341,8 +341,9 @@ class VideoEngine:
         print(f"✅ End card image saved: {output_path}")
 
     def _create_title_card_image(self, title: str, output_path: str, width: int = 1280, height: int = 720):
-        """Generate a 1280x720 title card PNG with the story title."""
-        img = Image.new("RGB", (width, height), color=(80, 50, 120))
+        """Generate a 1280x720 title card PNG with the story title (soft blue to match app palette)."""
+        # Soft blue (sky-600-ish) for main brand color
+        img = Image.new("RGB", (width, height), color=(2, 132, 199))
         draw = ImageDraw.Draw(img)
 
         title_font = self._load_font(64)
