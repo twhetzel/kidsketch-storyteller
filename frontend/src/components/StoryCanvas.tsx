@@ -23,7 +23,7 @@ interface StoryCanvasProps {
     loadingRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-export const StoryCanvas: React.FC<StoryCanvasProps> = ({ beats, characterName, isGenerating, isFirstBeat, showLongWaitMessage, maxScenes = 15, onNext, onEditBeat, onDeleteBeat, loadingRef }) => {
+export const StoryCanvas: React.FC<StoryCanvasProps> = ({ beats, characterName, isGenerating, isFirstBeat, showLongWaitMessage, maxScenes = 6, onNext, onEditBeat, onDeleteBeat, loadingRef }) => {
     const [editingBeatId, setEditingBeatId] = useState<string | null>(null);
     const [editNarration, setEditNarration] = useState("");
     const [editTitle, setEditTitle] = useState("");

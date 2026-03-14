@@ -42,7 +42,7 @@ app.add_middleware(
 # In-memory session store: sessionId -> StoryState
 sessions = {}
 
-MAX_BEATS_PER_SESSION = 15
+MAX_BEATS_PER_SESSION = 6
 
 @app.get("/")
 async def root():
@@ -161,11 +161,14 @@ async def create_story_beat(
             pass
 
     # 2. Generate next beat via Gemini interleaved output (text + optional inline image)
+    scene_index = len(state.history) + 1
     beat, inline_image_bytes = await story_agent.generate_next_beat(
         state,
         plan,
         user_input=effective_instruction if effective_instruction else f"Continue the story: {current_goal}",
         character_image_bytes=character_image_bytes,
+        scene_index=scene_index,
+        max_scenes=MAX_BEATS_PER_SESSION,
     )
 
     # 3. Get beat image: inline from Gemini, or fall back to Imagen; then upload once

@@ -299,15 +299,24 @@ Then generate one polished character illustration in a modern animation style (e
         plan: StoryPlan,
         user_input: Optional[str] = None,
         character_image_bytes: Optional[bytes] = None,
+        scene_index: Optional[int] = None,
+        max_scenes: int = 6,
     ) -> Tuple[StoryBeat, Optional[bytes]]:
         """
         Generates the next story beat using Gemini's interleaved text+image output.
         Returns (StoryBeat, image_bytes or None). When image_bytes is None, caller should
         use ImageGenService with beat.imagePrompt as fallback.
         If character_image_bytes is provided, it is sent as a reference so the model keeps the same character style.
+        scene_index and max_scenes (e.g. 5, 7) are used to prompt for a natural ending in the last 1–2 scenes.
         """
         sanitized_input = self._sanitize_user_input(user_input) if user_input else None
         beat_id = str(uuid4())
+        current = scene_index if scene_index is not None else len(state.history) + 1
+        ending_guidance = (
+            f"This is scene {current} of {max_scenes}. "
+            f"When this is one of the last 1–2 scenes (scene {max_scenes - 1} or {max_scenes}), "
+            "bring the story to a clear, satisfying conclusion (e.g. problem resolved, hero home, or a warm lesson)."
+        )
 
         style_lock = (
             "Art style: Use the same soft, cartoon, picture-book illustration style for every scene. "
@@ -348,6 +357,8 @@ Then generate one polished character illustration in a modern animation style (e
         if sanitized_input:
             system_instruction = f"""You are an expert storyteller for kids. Create the next story scene that directly responds to and incorporates the child's Instruction below. The scene MUST reflect the child's direction (e.g. if they said "go to the moon", they go to the moon).
 
+{ending_guidance}
+
 {ref_image_note}You must respond with both (1) the structured text below and (2) one generated illustration image. Do not respond with text only.
 
 {consistency_note}
@@ -383,6 +394,8 @@ Instruction: {sanitized_input}"""
             variation_line = f"\nVariation for this story: lean toward \"{variation_hint}\"." if variation_hint else ""
 
             system_instruction = f"""You are an expert storyteller for kids. Generate the next beat of the story based on the context below.
+
+{ending_guidance}
 
 {ref_image_note}You must respond with both (1) the structured text below and (2) one generated illustration image. Do not respond with text only.
 

@@ -148,7 +148,7 @@ export default function Home() {
     }
   };
 
-  const MAX_SCENES = 15;
+  const MAX_SCENES = 6;
 
   const updateBeat = async (sid: string, beatId: string, updates: { narration?: string; sceneTitle?: string }) => {
     try {
