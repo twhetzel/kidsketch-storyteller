@@ -208,6 +208,7 @@ async def update_story_beat(session_id: str, beat_id: str, body: BeatUpdateBody)
     state = sessions[session_id]
     for beat in state.history:
         if beat.id == beat_id:
+            # Keep existing value when client sends empty/whitespace; clearing is not supported.
             if body.narration is not None:
                 beat.narration = body.narration[:600].strip() or beat.narration
             if body.sceneTitle is not None:
