@@ -289,13 +289,13 @@ export default function Home() {
           )}
 
           {characterModel && beats.length === 0 && !isGenerating && (
-            <div className="w-full max-w-md flex flex-col items-center gap-4 p-6 bg-white/80 rounded-2xl border-2 border-sky-100">
+            <div className="w-full max-w-md flex flex-col items-center gap-4 p-6 bg-white/80 rounded-2xl border-2 border-gray-200">
               <label className="text-sm font-bold text-gray-700 font-comic">Story idea (optional)</label>
               <textarea
                 value={initialStoryline}
                 onChange={(e) => setInitialStoryline(e.target.value)}
                 placeholder="e.g. The hero finds a magic key in the forest..."
-                className="w-full min-h-[80px] px-4 py-3 rounded-xl border-2 border-sky-200 text-gray-700 placeholder-gray-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none resize-y"
+                className="w-full min-h-[80px] px-4 py-3 rounded-xl border-2 border-purple-200 bg-gray-100 text-gray-700 placeholder-gray-400 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none resize-y"
                 maxLength={500}
               />
               <button

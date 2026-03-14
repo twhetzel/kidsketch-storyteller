@@ -52,7 +52,7 @@ export const WebcamCapture: React.FC<WebcamCaptureProps> = ({ onCapture }) => {
                         </button>
                     </div>
                 ) : (
-                <div className="relative w-full rounded-xl overflow-hidden border-4 border-sky-300">
+                <div className="relative w-full rounded-xl overflow-hidden border-4 border-purple-200">
                     <Webcam
                         audio={false}
                         ref={webcamRef}
