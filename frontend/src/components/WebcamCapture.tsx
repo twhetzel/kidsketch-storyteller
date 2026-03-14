@@ -66,8 +66,7 @@ export const WebcamCapture: React.FC<WebcamCaptureProps> = ({ onCapture }) => {
                         <Camera size={28} />
                     </button>
                 </div>
-                )
-            ) : (
+            ) ) : (
                 <div className="flex flex-col items-center space-y-4">
                     <img src={imgSrc} alt="Captured drawing" className="w-full rounded-xl border-4 border-green-400 shadow-inner" />
                     <div className="flex space-x-4">
