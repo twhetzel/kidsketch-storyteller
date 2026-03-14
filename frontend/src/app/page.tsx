@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { WebcamCapture } from '@/components/WebcamCapture';
 import { StoryCanvas } from '@/components/StoryCanvas';
 import { AnimatedCharacter } from '@/components/AnimatedCharacter';
@@ -37,9 +37,19 @@ export default function Home() {
   const [isTalking, setIsTalking] = useState(false);
   const [beats, setBeats] = useState<StoryBeat[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showLongWaitMessage, setShowLongWaitMessage] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [movieUrl, setMovieUrl] = useState<string | null>(null);
   const loadingRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isGenerating) {
+      setShowLongWaitMessage(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowLongWaitMessage(true), 10000);
+    return () => clearTimeout(timer);
+  }, [isGenerating]);
 
   const handleExport = async () => {
     if (!sessionId) return;
@@ -170,6 +180,7 @@ export default function Home() {
             beats={beats}
             characterName={characterName}
             isGenerating={isGenerating}
+            showLongWaitMessage={showLongWaitMessage}
             onNext={() => sessionId && generateBeat(sessionId)}
             loadingRef={loadingRef}
           />

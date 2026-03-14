@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from uuid import uuid4
 from typing import Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
@@ -79,25 +80,28 @@ async def analyze_sketch(session_id: str, request: Request):
     sketch_path = f"sessions/{session_id}/sketch.png"
     sessions[session_id].sourceSketchUrl = await storage_service.upload_bytes(image_bytes, sketch_path)
     
-    profile = await story_agent.analyze_drawing(image_bytes)
+    # 2. Character profile + illustration via Gemini interleaved (text + optional image)
+    profile, inline_char_image_bytes, design_data = await story_agent.analyze_drawing_and_generate_character_image(image_bytes)
     sessions[session_id].characterProfile = profile
-    
-    # 2. Generate Polished Character Design
-    design_data = await story_agent.generate_character_prompt(profile)
-    
-    # 3. Generate Character Image (Imagen 3)
+
     local_char_path = f"/tmp/{session_id}_character.png"
-    gen_char_path = await image_gen.generate_image(design_data["visualPrompt"], local_char_path)
-    
-    # 4. Upload to GCS
-    if gen_char_path:
+    character_image_ready = False
+    if inline_char_image_bytes:
+        with open(local_char_path, "wb") as f:
+            f.write(inline_char_image_bytes)
+        character_image_ready = True
+    else:
+        # Fallback: no inline image from Gemini — use Imagen 3 with prompt from design_data or generate_character_prompt
+        design_data = await story_agent.generate_character_prompt(profile)
+        character_image_ready = bool(await image_gen.generate_image(design_data["visualPrompt"], local_char_path))
+
+    if character_image_ready:
         remote_char_path = f"sessions/{session_id}/character_model.png"
         char_url = await storage_service.upload_file(local_char_path, remote_char_path)
     else:
-        # Fallback: Use the original sketch if Imagen 3 fails
         char_url = sessions[session_id].sourceSketchUrl if sessions[session_id].sourceSketchUrl != "pending" else "https://placehold.co/600x400?text=Drawing+in+progress...🎨"
-    
-    # 5. Store CharacterModel
+
+    # 3. Store CharacterModel
     char_model = CharacterModel(
         imageUrl=char_url,
         traits=design_data["detailedTraits"],
@@ -129,12 +133,23 @@ async def create_story_beat(session_id: str, user_instruction: Optional[str] = N
     # 1. Update narrative if instruction exists
     if user_instruction:
         await story_agent.update_narrative(state, plan, user_instruction)
-    
+
+    # Optional: pass character reference image so Gemini keeps the same style across beats
+    character_image_bytes = None
+    if state.characterModel and state.characterModel.imageUrl and "placehold" not in state.characterModel.imageUrl:
+        try:
+            char_ref_path = f"/tmp/char_ref_{session_id}.png"
+            await storage_service.download_file(state.characterModel.imageUrl, char_ref_path)
+            character_image_bytes = Path(char_ref_path).read_bytes()
+        except Exception:
+            pass
+
     # 2. Generate next beat via Gemini interleaved output (text + optional inline image)
     beat, inline_image_bytes = await story_agent.generate_next_beat(
         state,
         plan,
         user_input=user_instruction if user_instruction else f"Continue the story: {current_goal}",
+        character_image_bytes=character_image_bytes,
     )
 
     # 3. Get beat image: inline from Gemini, or fall back to Imagen; then upload once
@@ -153,7 +168,7 @@ async def create_story_beat(session_id: str, user_instruction: Optional[str] = N
         remote_img_path = f"sessions/{session_id}/beats/{beat.id}.png"
         beat.imageUrl = await storage_service.upload_file(local_img_path, remote_img_path)
     else:
-        beat.imageUrl = state.sourceSketchUrl if state.sourceSketchUrl != "pending" else "https://placehold.co/600x400?text=Drawing+in+progress...🎨"
+        beat.imageUrl = "https://placehold.co/600x400?text=Scene+unavailable"
     
     # Update State
     state.history.append(beat)

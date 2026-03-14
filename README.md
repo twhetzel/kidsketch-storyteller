@@ -19,7 +19,7 @@ KidSketch Storyteller lets a child **draw a character** (e.g., via webcam or upl
 | **Sketch capture** | Child captures a drawing (e.g., via webcam). |
 | **Character analysis** | Gemini analyzes the sketch and returns a structured character profile (name, description, visual traits). |
 | **Character image** | A detailed Imagen 3 prompt is generated from the profile; Vertex Imagen 3 produces a polished character image. |
-| **Story beats** | Gemini (image-capable model) generates the next story beat with interleaved text and optional inline image (title, narration, scene illustration in one response). User can steer with text or voice (e.g., “go to the moon”). If no image is returned, Vertex Imagen 3 is used as fallback. |
+| **Story beats** | Gemini (image-capable model) generates the next story beat with interleaved text and optional inline image (title, narration, scene illustration in one response). Character reference image and style instructions keep the same look across scenes. If no image is returned, Gemini is retried once; if still no image, Vertex Imagen 3 is used as fallback. When no scene image is available, a placeholder is shown (the original sketch is never used as a beat image). User can steer with text or voice (e.g., “go to the moon”). |
 | **Narrative state** | User instructions update story world state (setting, continuity facts) via Gemini before generating the next beat. |
 | **Live voice** | WebSocket from frontend to backend; backend proxies to Gemini Multimodal Live (native audio). Child talks to the character; character responds with audio. Optional transcript can trigger a new story beat. |
 | **Export movie** | Story beats are turned into a movie plan (shots with narration, images, motion). gTTS generates narration audio; FFmpeg produces a single video; result is uploaded to GCS and a URL is returned. |
@@ -120,7 +120,7 @@ flowchart TB
 
 1. **Frontend** sends sketch (e.g., from webcam) to backend **REST** → **Session init** and **Analyze**.
 2. **Story Agent** calls **Gemini** for profile and character prompt; **Image Gen** calls **Vertex Imagen 3** for character image; **Storage** saves sketch and image to **GCS**.
-3. **Story beats**: REST with optional `user_instruction` → **Story Agent** (Gemini 2.5 Flash Image) → next beat with optional inline image; if no image, **Image Gen** (Imagen 3) → scene image; **Storage** (GCS).
+3. **Story beats**: REST with optional `user_instruction` → **Story Agent** (Gemini 2.5 Flash Image, with character reference for style consistency) → next beat with optional inline image; if no image, one retry; if still none, **Image Gen** (Imagen 3) → scene image (or placeholder); **Storage** (GCS).
 4. **Live voice**: Frontend opens **WebSocket** to backend; **Multimodal Live Bridge** connects to **Gemini Multimodal Live**; audio is proxied both ways; backend can use transcript to trigger a new beat (REST).
 5. **Export**: REST **Export** → **Video Engine** builds movie from beats (gTTS + FFmpeg), **Storage** uploads movie to **GCS**, backend returns movie URL.
 
