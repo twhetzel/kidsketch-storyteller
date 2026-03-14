@@ -1,6 +1,8 @@
 import asyncio
 import aiohttp
 from datetime import datetime, timezone
+from urllib.parse import urlparse
+
 from google.cloud import storage
 
 
@@ -39,14 +41,16 @@ class StorageService:
         if "storage.googleapis.com" in remote_url and "/" in remote_url:
             # Parse bucket and path from https://storage.googleapis.com/bucket_name/path/to/object
             try:
-                after = remote_url.split("storage.googleapis.com/")[-1].split("?")[0]
-                parts = after.split("/", 1)
-                if len(parts) == 2:
-                    bucket_name, path = parts
-                    bucket = self.client.bucket(bucket_name)
-                    blob = bucket.blob(path)
-                    await asyncio.to_thread(blob.download_to_filename, local_path)
-                    return
+                parsed = urlparse(remote_url)
+                if parsed.netloc == "storage.googleapis.com" and parsed.path:
+                    path_str = parsed.path.lstrip("/")
+                    parts = path_str.split("/", 1)
+                    if len(parts) == 2:
+                        bucket_name, path = parts
+                        bucket = self.client.bucket(bucket_name)
+                        blob = bucket.blob(path)
+                        await asyncio.to_thread(blob.download_to_filename, local_path)
+                        return
             except Exception as e:
                 print(f"GCS download from URL failed: {e}")
             # Fall through to aiohttp if parse or download failed
