@@ -1,8 +1,11 @@
+import logging
 import os
 import subprocess
 import aiohttp
 import asyncio
 from typing import List, Optional
+
+import cairosvg
 from schemas import StoryBeat, MoviePlan, ShotPlan
 
 class VideoEngine:
@@ -270,11 +273,10 @@ class VideoEngine:
     def _svg_to_png_sync(self, svg_path: str, png_path: str) -> bool:
         """Convert SVG to PNG so ffmpeg can use it. Returns True on success."""
         try:
-            import cairosvg
             cairosvg.svg2png(url=svg_path, write_to=png_path)
             return os.path.isfile(png_path) and os.path.getsize(png_path) > 0
-        except Exception as e:
-            print(f"SVG to PNG conversion failed: {e}")
+        except (ImportError, OSError, ValueError) as e:
+            logging.warning("SVG to PNG conversion failed: %s", e)
             return False
 
     def _ensure_png_for_ffmpeg(self, image_path: str, session_id: str, shot_i: int) -> str:
