@@ -11,6 +11,7 @@ interface WebcamCaptureProps {
 export const WebcamCapture: React.FC<WebcamCaptureProps> = ({ onCapture }) => {
     const webcamRef = useRef<Webcam>(null);
     const [imgSrc, setImgSrc] = useState<string | null>(null);
+    const [cameraStarted, setCameraStarted] = useState(false);
 
     const capture = useCallback(() => {
         const imageSrc = webcamRef.current?.getScreenshot();
@@ -27,17 +28,36 @@ export const WebcamCapture: React.FC<WebcamCaptureProps> = ({ onCapture }) => {
         }
     };
 
+    const startCamera = () => {
+        setCameraStarted(true);
+    };
+
     return (
-        <div className="flex flex-col items-center space-y-4 p-6 bg-white rounded-2xl shadow-xl border-4 border-yellow-200">
-            <h2 className="text-2xl font-bold text-gray-800 font-comic">Show me your drawing! 🎨</h2>
+        <div className="w-full flex flex-col items-center gap-6 min-h-[420px] p-6 md:p-8 bg-white rounded-3xl shadow-2xl border border-gray-300">
+            <h2 className="text-3xl font-black text-purple-600 font-comic text-center flex-shrink-0">Show me your drawing! 🎨</h2>
 
             {!imgSrc ? (
-                <div className="relative rounded-xl overflow-hidden border-4 border-blue-400">
+                !cameraStarted ? (
+                    <div className="flex flex-col items-center w-full flex-1 min-h-0">
+                        <p className="text-gray-700 text-center font-medium flex-shrink-0">
+                            Click start camera, then hold your drawing in the frame and tap the button to capture.
+                        </p>
+                        <div className="flex-1 min-h-4 w-full" />
+                        <button
+                            onClick={startCamera}
+                            className="w-full flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white py-4 px-6 rounded-xl font-bold shadow-lg transition-all hover:scale-[1.02] flex-shrink-0"
+                        >
+                            <Camera size={24} />
+                            Start camera
+                        </button>
+                    </div>
+                ) : (
+                <div className="relative w-full rounded-xl overflow-hidden border-4 border-blue-400">
                     <Webcam
                         audio={false}
                         ref={webcamRef}
                         screenshotFormat="image/png"
-                        className="w-full max-w-md h-auto"
+                        className="w-full h-auto"
                     />
                     <button
                         onClick={capture}
@@ -46,9 +66,9 @@ export const WebcamCapture: React.FC<WebcamCaptureProps> = ({ onCapture }) => {
                         <Camera size={28} />
                     </button>
                 </div>
-            ) : (
+            ) ) : (
                 <div className="flex flex-col items-center space-y-4">
-                    <img src={imgSrc} alt="Captured drawing" className="rounded-xl border-4 border-green-400 max-w-md shadow-inner" />
+                    <img src={imgSrc} alt="Captured drawing" className="w-full rounded-xl border-4 border-green-400 shadow-inner" />
                     <div className="flex space-x-4">
                         <button
                             onClick={retake}

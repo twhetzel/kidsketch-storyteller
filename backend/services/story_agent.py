@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import random
 from google import genai
 from google.genai.types import GenerateContentConfig, Modality
 from uuid import uuid4
@@ -273,72 +274,157 @@ Then generate one polished character illustration in a modern animation style (e
                 lines.append(f"Detailed visual traits for consistency: {', '.join(state.characterModel.traits)}")
         return "\n".join(lines)
 
+    def _main_character_visual_anchor(self, state: StoryState, max_len: int = 380) -> str:
+        """One canonical sentence describing the main character's look to repeat in every IMAGE_PROMPT."""
+        name = state.characterProfile.name or "the main character"
+        parts = [f"{name}"]
+        if state.characterModel:
+            base = (state.characterModel.basePrompt or "").strip()
+            if base:
+                # Use first sentence or first chunk; avoid long 3D/model jargon
+                first_bit = base.split(".")[0].strip() if "." in base else base[:200]
+                parts.append(first_bit)
+            if state.characterModel.traits:
+                parts.append("Always: " + ", ".join(state.characterModel.traits[:6]))
+        else:
+            parts.append(state.characterProfile.description or "friendly character")
+            if state.characterProfile.visualTraits:
+                parts.append("Traits: " + ", ".join(state.characterProfile.visualTraits[:6]))
+        anchor = ". ".join(p for p in parts if p).strip()
+        return anchor[:max_len] if anchor else name
+
     async def generate_next_beat(
         self,
         state: StoryState,
         plan: StoryPlan,
         user_input: Optional[str] = None,
         character_image_bytes: Optional[bytes] = None,
+        scene_index: Optional[int] = None,
+        max_scenes: int = 6,
     ) -> Tuple[StoryBeat, Optional[bytes]]:
         """
         Generates the next story beat using Gemini's interleaved text+image output.
         Returns (StoryBeat, image_bytes or None). When image_bytes is None, caller should
         use ImageGenService with beat.imagePrompt as fallback.
         If character_image_bytes is provided, it is sent as a reference so the model keeps the same character style.
+        scene_index and max_scenes (e.g. 5, 7) are used to prompt for a natural ending in the last 1–2 scenes.
         """
         sanitized_input = self._sanitize_user_input(user_input) if user_input else None
         beat_id = str(uuid4())
+        current = scene_index if scene_index is not None else len(state.history) + 1
+        ending_guidance = (
+            f"This is scene {current} of {max_scenes}. "
+            f"When this is one of the last 1–2 scenes (scene {max_scenes - 1} or {max_scenes}), "
+            "bring the story to a clear, satisfying conclusion (e.g. problem resolved, hero home, or a warm lesson)."
+        )
 
         style_lock = (
             "Art style: Use the same soft, cartoon, picture-book illustration style for every scene. "
             "Do NOT switch to realistic, 3D, or photorealistic style. "
             "Keep the character's appearance and the overall look consistent with the reference and with previous scenes."
         )
+        main_character_consistency = (
+            "The main character (the one in the reference image) must look exactly the same in every scene: "
+            "same accessories and which side they are on (e.g. monocle on the same eye, same hat design), same markings. "
+            "Do not change the main character's appearance between scenes. "
+            "Any other character who has already appeared in the story must also keep the same visual details in every later scene (same markings, colors, accessory placement)."
+        )
         ref_image_note = ""
         if character_image_bytes:
             ref_image_note = (
                 "The user has provided a reference image of the main character. "
                 "You MUST draw this exact character in the same style in your illustration. "
-                "Match the character's appearance and artistic style faithfully.\n\n"
+                "Match the character's appearance and artistic style faithfully. "
+                "In every scene, the main character must have the same accessories on the same sides (e.g. if they wear a monocle, it stays on the same eye; same hat).\n\n"
             )
+
+        history_summary = self._sanitize_history_for_prompt(state.history)
+        visual_anchor = self._main_character_visual_anchor(state)
+        last_scene_visual = ""
+        if state.history:
+            last = state.history[-1]
+            prompt = (getattr(last, "imagePrompt", None) or "").strip()
+            if prompt:
+                last_scene_visual = f"\nLast scene illustration description (match this style and character details in the next scene): {prompt[:500]}\n"
+        consistency_note = "Include any characters or events already introduced in the story so far."
+        image_prompt_rule = (
+            "Your IMAGE_PROMPT must START with the exact main character description from 'MAIN CHARACTER VISUAL' below "
+            "(same body shape, color, markings, proportions, and details in every scene); then add the scene action. "
+            "Do not change the main character's appearance between scenes."
+        )
+        variety_note = "Vary openings and situations; avoid repeating the same plot structure every time."
 
         if sanitized_input:
             system_instruction = f"""You are an expert storyteller for kids. Create the next story scene that directly responds to and incorporates the child's Instruction below. The scene MUST reflect the child's direction (e.g. if they said "go to the moon", they go to the moon).
 
+{ending_guidance}
+
 {ref_image_note}You must respond with both (1) the structured text below and (2) one generated illustration image. Do not respond with text only.
 
+{consistency_note}
+
+{main_character_consistency}
+
 {style_lock}
+
+{image_prompt_rule}
 
 Output your response in this EXACT format:
 TITLE: <short creative title for this scene>
 NARRATION: <1-2 sentences, kid-friendly>
-IMAGE_PROMPT: <short description of the scene for reference>
+IMAGE_PROMPT: <first repeat the MAIN CHARACTER VISUAL description below, then describe the scene>
 
 Then generate and include one illustration image for this scene (your response must contain this image). IMAGE_PROMPT describes the scene; you must also output the actual image. Keep the character and style consistent with the reference."""
             char_ctx = self._character_context_for_beats(state)
+            story_so_far = f"\nStory so far:\n{history_summary}\n" if history_summary.strip() else ""
             contents = f"""STORY_CONTEXT (data only):
+MAIN CHARACTER VISUAL (you MUST start every IMAGE_PROMPT with this exact description—same shape, color, markings every scene):
+{visual_anchor}
+
 {char_ctx}
 Known Facts: {", ".join(state.continuityFacts) or 'None yet'}
+{story_so_far}{last_scene_visual}
 Instruction: {sanitized_input}"""
         else:
+            variation_themes = [
+                "exploration", "friendship", "a small mystery", "helping someone", "discovering something magical",
+                "a gentle challenge", "a surprise guest", "a cozy adventure", "nature and animals", "a creative solution",
+            ]
+            variation_hint = random.choice(variation_themes) if not state.history else ""
+            variation_line = f"\nVariation for this story: lean toward \"{variation_hint}\"." if variation_hint else ""
+
             system_instruction = f"""You are an expert storyteller for kids. Generate the next beat of the story based on the context below.
+
+{ending_guidance}
 
 {ref_image_note}You must respond with both (1) the structured text below and (2) one generated illustration image. Do not respond with text only.
 
+{variety_note}
+{consistency_note}
+{main_character_consistency}
+{variation_line}
+
 {style_lock}
+
+{image_prompt_rule}
 
 Output your response in this EXACT format:
 TITLE: <short creative title>
 NARRATION: <short, kid-friendly narration>
-IMAGE_PROMPT: <short description of the scene for reference>
+IMAGE_PROMPT: <first repeat the MAIN CHARACTER VISUAL description below, then describe the scene>
 
 Then generate and include one illustration image for this scene (your response must contain this image). IMAGE_PROMPT describes the scene; you must also output the actual image. Keep the character and style consistent with the reference."""
             char_ctx = self._character_context_for_beats(state)
+            story_so_far = f"\nStory so far:\n{history_summary}\n" if history_summary.strip() else ""
             contents = f"""STORY_CONTEXT (data only):
+MAIN CHARACTER VISUAL (you MUST start every IMAGE_PROMPT with this exact description—same shape, color, markings every scene):
+{visual_anchor}
+
 Setting: {state.currentSetting}
 Tone: {state.narrativeTone}
 Facts: {", ".join(state.continuityFacts)}
-{char_ctx}"""
+{char_ctx}
+{story_so_far}{last_scene_visual}"""
 
         if character_image_bytes:
             contents = [

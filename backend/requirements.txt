@@ -13,3 +13,4 @@ aiohttp
 gtts
 requests
 Pillow
+cairosvg
