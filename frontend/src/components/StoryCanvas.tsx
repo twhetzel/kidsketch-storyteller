@@ -13,11 +13,12 @@ interface StoryCanvasProps {
     beats: StoryBeat[];
     characterName: string;
     isGenerating: boolean;
+    showLongWaitMessage?: boolean;
     onNext: () => void;
     loadingRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-export const StoryCanvas: React.FC<StoryCanvasProps> = ({ beats, characterName, isGenerating, onNext, loadingRef }) => {
+export const StoryCanvas: React.FC<StoryCanvasProps> = ({ beats, characterName, isGenerating, showLongWaitMessage, onNext, loadingRef }) => {
     if (!beats) return null;
     return (
         <div className="flex flex-col space-y-8 w-full max-w-2xl px-4 py-8 bg-white/50 backdrop-blur-sm rounded-3xl min-h-[600px] shadow-2xl border-2 border-white">
@@ -51,6 +52,9 @@ export const StoryCanvas: React.FC<StoryCanvasProps> = ({ beats, characterName, 
                         <div className="w-full aspect-video bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border-8 border-dashed border-purple-200 flex flex-col items-center justify-center gap-3">
                             <div className="w-10 h-10 border-4 border-purple-400 border-t-transparent rounded-full animate-spin" />
                             <span className="text-purple-400 font-bold text-lg">Drawing the next scene... 🖌️✨</span>
+                            {showLongWaitMessage && (
+                                <span className="text-purple-500/90 text-sm font-medium">Taking a bit longer to draw this scene...</span>
+                            )}
                         </div>
                     </div>
                 )}

@@ -2,11 +2,13 @@
 
 A children's storytelling app that turns a kid's sketch into a character, generates an interactive story with AI, supports live voice conversation with the character, and exports the story as an animated movie.
 
+**Mandatory tech:** Story beats use **Gemini's interleaved output** (text and image in a single response); Vertex Imagen 3 is used for the character image and as fallback when a beat has no inline image.
+
 ---
 
 ## Summary
 
-KidSketch Storyteller lets a child **draw a character** (e.g., via webcam or upload). The app uses **Gemini** to analyze the drawing and create a character profile, **Vertex AI Imagen 3** to generate a polished character image, and **Gemini** again to produce story beats (narration + scene images). The child can **talk to the character** in real time via **Gemini Multimodal Live** (voice-in, voice-out). Story beats are assembled into an **animated movie** (FFmpeg + gTTS) and stored in **Google Cloud Storage**. All session state is held **in memory** in the backend; media assets (sketches, images, audio, final video) are persisted in GCS.
+KidSketch Storyteller lets a child **draw a character** (e.g., via webcam or upload). The app uses **Gemini** to analyze the drawing and create a character profile, **Vertex AI Imagen 3** to generate a polished character image, and **Gemini** (with interleaved text+image output) to produce story beats—narration and scene images in a single response. When Gemini doesn’t return an image, **Imagen 3** is used as fallback for the scene. The child can **talk to the character** in real time via **Gemini Multimodal Live** (voice-in, voice-out). Story beats are assembled into an **animated movie** (FFmpeg + gTTS) and stored in **Google Cloud Storage**. All session state is held **in memory** in the backend; media assets (sketches, images, audio, final video) are persisted in GCS.
 
 ---
 
@@ -17,7 +19,7 @@ KidSketch Storyteller lets a child **draw a character** (e.g., via webcam or upl
 | **Sketch capture** | Child captures a drawing (e.g., via webcam). |
 | **Character analysis** | Gemini analyzes the sketch and returns a structured character profile (name, description, visual traits). |
 | **Character image** | A detailed Imagen 3 prompt is generated from the profile; Vertex Imagen 3 produces a polished character image. |
-| **Story beats** | Gemini generates the next story beat (scene title, kid-friendly narration, image prompt). User can steer with text or voice (e.g., “go to the moon”). |
+| **Story beats** | Gemini (image-capable model) generates the next story beat with interleaved text and optional inline image (title, narration, scene illustration in one response). Character reference image and style instructions keep the same look across scenes. If no image is returned, Gemini is retried once; if still no image, Vertex Imagen 3 is used as fallback. When no scene image is available, a placeholder is shown (the original sketch is never used as a beat image). User can steer with text or voice (e.g., “go to the moon”). |
 | **Narrative state** | User instructions update story world state (setting, continuity facts) via Gemini before generating the next beat. |
 | **Live voice** | WebSocket from frontend to backend; backend proxies to Gemini Multimodal Live (native audio). Child talks to the character; character responds with audio. Optional transcript can trigger a new story beat. |
 | **Export movie** | Story beats are turned into a movie plan (shots with narration, images, motion). gTTS generates narration audio; FFmpeg produces a single video; result is uploaded to GCS and a URL is returned. |
@@ -30,8 +32,8 @@ KidSketch Storyteller lets a child **draw a character** (e.g., via webcam or upl
 |-------|------------|
 | **Frontend** | Next.js 16, React 19, TypeScript, Tailwind CSS, Lucide React, react-webcam |
 | **Backend** | FastAPI, Uvicorn, Pydantic, WebSockets, python-dotenv |
-| **AI – text / planning** | Google Gemini (google-genai): character analysis, character prompt, next beat, narrative update, movie plan (Gemini 2.0 Flash). Prompt-injection mitigations: input sanitization, system vs. user separation, output length limits. |
-| **AI – image** | Vertex AI Imagen 3 (google-cloud-aiplatform, vertexai.preview.vision_models) for character and scene images |
+| **AI – text / planning** | Google Gemini (google-genai): character analysis, character prompt, narrative update, movie plan (Gemini 2.0 Flash); story beats use Gemini 2.5 Flash Image with interleaved text+image output. Prompt-injection mitigations: input sanitization, system vs. user separation, output length limits. |
+| **AI – image** | Gemini 2.5 Flash Image for story-beat scene images (interleaved with text); Vertex AI Imagen 3 (google-cloud-aiplatform) for character image and as fallback when a beat has no inline image. |
 | **AI – voice** | Gemini Multimodal Live (Gemini 2.5 Flash Native Audio) via WebSocket; backend bridges client WebSocket to Gemini Bidi API |
 | **Storage** | Google Cloud Storage (google-cloud-storage): sketches, character image, beat images, TTS audio, final movie |
 | **Media pipeline** | gTTS for narration audio, FFmpeg (ffmpeg-python) for animated movie assembly, Pillow for image handling |
@@ -50,7 +52,7 @@ KidSketch Storyteller lets a child **draw a character** (e.g., via webcam or upl
 - **External APIs**  
   - **Gemini API** (google-genai): character analysis, story/narrative/movie-plan generation.  
   - **Gemini Multimodal Live** (WebSocket): real-time voice conversation.  
-  - **Vertex AI** (Imagen 3): image generation.  
+  - **Vertex AI** (Imagen 3): character image generation and fallback for story-beat scene images when Gemini does not return one.  
   No other third-party data sources (e.g., no Firestore in the current flow; it appears only in backend requirements for possible future use).
 
 ---
@@ -91,12 +93,13 @@ flowchart TB
     end
 
     subgraph Gemini["Google Gemini"]
-        Gemini_Text[Gemini 2.0 Flash<br/>Character, story beats, narrative, movie plan]
+        Gemini_Text[Gemini 2.0 Flash<br/>Character, narrative, movie plan]
+        Gemini_Image[Gemini 2.5 Flash Image<br/>Story beats – interleaved text + image]
         Gemini_Live[Gemini 2.5 Flash Native Audio<br/>Live voice]
     end
 
     subgraph Vertex["Vertex AI"]
-        Imagen[Imagen 3<br/>Character & scene images]
+        Imagen[Imagen 3<br/>Character image; scene fallback]
     end
 
     subgraph GCS["Google Cloud Storage"]
@@ -107,6 +110,7 @@ flowchart TB
     Frontend -->|WebSocket /ws/live/:id| Backend
 
     StoryAgent -->|API calls| Gemini_Text
+    StoryAgent -->|Interleaved text+image| Gemini_Image
     LiveBridge -->|Bidi WebSocket| Gemini_Live
     ImageGen -->|Vertex API| Imagen
     StorageSvc -->|Upload / Download| Bucket
@@ -116,7 +120,7 @@ flowchart TB
 
 1. **Frontend** sends sketch (e.g., from webcam) to backend **REST** → **Session init** and **Analyze**.
 2. **Story Agent** calls **Gemini** for profile and character prompt; **Image Gen** calls **Vertex Imagen 3** for character image; **Storage** saves sketch and image to **GCS**.
-3. **Story beats**: REST with optional `user_instruction` → **Story Agent** (Gemini) → next beat; **Image Gen** (Imagen 3) → scene image → **Storage** (GCS).
+3. **Story beats**: REST with optional `user_instruction` → **Story Agent** (Gemini 2.5 Flash Image, with character reference for style consistency) → next beat with optional inline image; if no image, one retry; if still none, **Image Gen** (Imagen 3) → scene image (or placeholder); **Storage** (GCS).
 4. **Live voice**: Frontend opens **WebSocket** to backend; **Multimodal Live Bridge** connects to **Gemini Multimodal Live**; audio is proxied both ways; backend can use transcript to trigger a new beat (REST).
 5. **Export**: REST **Export** → **Video Engine** builds movie from beats (gTTS + FFmpeg), **Storage** uploads movie to **GCS**, backend returns movie URL.
 
