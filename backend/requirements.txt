@@ -5,7 +5,7 @@ pydantic-settings
 google-cloud-storage
 google-cloud-firestore
 google-cloud-aiplatform
-google-generativeai
+google-genai
 python-dotenv
 websockets
 ffmpeg-python

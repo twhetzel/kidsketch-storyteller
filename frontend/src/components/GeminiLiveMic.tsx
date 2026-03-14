@@ -103,6 +103,18 @@ export const GeminiLiveMic: React.FC<GeminiLiveMicProps> = ({ sessionId, onStop 
                 console.warn("⚠️ Web Speech API not available — transcript will be empty");
             }
 
+            // --- Setup Audio Early (Must be linked to user gesture) ---
+            const audioCtx = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE });
+            audioContextRef.current = audioCtx;
+
+            // Resume context immediately in case it started suspended
+            if (audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+            }
+
+            // Load the AudioWorklet module
+            await audioCtx.audioWorklet.addModule('/worklets/audio-processor.js');
+
             // --- Gemini Live WebSocket for voice interaction ---
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
             const wsUrl = apiUrl.replace(/^http/, 'ws') + `/ws/live/${sessionId}`;
@@ -112,12 +124,6 @@ export const GeminiLiveMic: React.FC<GeminiLiveMicProps> = ({ sessionId, onStop 
             ws.onopen = async () => {
                 console.log("✅ Gemini WebSocket connected");
                 try {
-                    const audioCtx = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE });
-                    audioContextRef.current = audioCtx;
-
-                    // Load the AudioWorklet module
-                    await audioCtx.audioWorklet.addModule('/worklets/audio-processor.js');
-
                     const source = audioCtx.createMediaStreamSource(stream);
                     const processor = new AudioWorkletNode(audioCtx, 'audio-processor');
                     processorRef.current = processor;
@@ -132,7 +138,7 @@ export const GeminiLiveMic: React.FC<GeminiLiveMicProps> = ({ sessionId, onStop 
                     processor.connect(audioCtx.destination);
                     console.log("🎙️ AudioWorklet PCM streaming started at 16kHz");
                 } catch (err) {
-                    console.error("❌ Audio setup failed:", err);
+                    console.error("❌ Audio connection logic failed:", err);
                     cleanup();
                 }
             };
