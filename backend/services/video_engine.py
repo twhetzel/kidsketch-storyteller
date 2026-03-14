@@ -6,6 +6,7 @@ import asyncio
 from typing import List, Optional
 
 import cairosvg
+from PIL import Image, ImageDraw, ImageFont
 from schemas import StoryBeat, MoviePlan, ShotPlan
 
 class VideoEngine:
@@ -299,31 +300,28 @@ class VideoEngine:
                 escaped = seg.replace("'", "'\\''")
                 f.write(f"file '{escaped}'\n")
 
-    def _create_end_card_image(self, output_path: str, width: int = 1280, height: int = 720):
-        """Generate a 1280x720 end card PNG using Pillow."""
-        from PIL import Image, ImageDraw, ImageFont
-
-        img = Image.new("RGB", (width, height), color=(0, 0, 0))
-        draw = ImageDraw.Draw(img)
-
-        # Try system fonts in order of preference
+    def _load_font(self, size: int):
+        """Load a system font at the given size; fall back to default if none found."""
         font_paths = [
             "/System/Library/Fonts/SFNS.ttf",
             "/System/Library/Fonts/SFNSRounded.ttf",
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",  # Linux fallback
         ]
+        for fp in font_paths:
+            if os.path.exists(fp):
+                try:
+                    return ImageFont.truetype(fp, size)
+                except Exception:
+                    pass
+        return ImageFont.load_default()
 
-        def load_font(size):
-            for fp in font_paths:
-                if os.path.exists(fp):
-                    try:
-                        return ImageFont.truetype(fp, size)
-                    except Exception:
-                        pass
-            return ImageFont.load_default()
+    def _create_end_card_image(self, output_path: str, width: int = 1280, height: int = 720):
+        """Generate a 1280x720 end card PNG using Pillow."""
+        img = Image.new("RGB", (width, height), color=(0, 0, 0))
+        draw = ImageDraw.Draw(img)
 
-        title_font = load_font(72)
-        subtitle_font = load_font(30)
+        title_font = self._load_font(72)
+        subtitle_font = self._load_font(30)
 
         title = "Created with KidSketch"
         subtitle = "From drawing to living story"
@@ -344,27 +342,10 @@ class VideoEngine:
 
     def _create_title_card_image(self, title: str, output_path: str, width: int = 1280, height: int = 720):
         """Generate a 1280x720 title card PNG with the story title."""
-        from PIL import Image, ImageDraw, ImageFont
-
         img = Image.new("RGB", (width, height), color=(80, 50, 120))
         draw = ImageDraw.Draw(img)
 
-        font_paths = [
-            "/System/Library/Fonts/SFNS.ttf",
-            "/System/Library/Fonts/SFNSRounded.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        ]
-
-        def load_font(size):
-            for fp in font_paths:
-                if os.path.exists(fp):
-                    try:
-                        return ImageFont.truetype(fp, size)
-                    except Exception:
-                        pass
-            return ImageFont.load_default()
-
-        title_font = load_font(64)
+        title_font = self._load_font(64)
         display_title = title if len(title) <= 40 else title[:37] + "..."
         t_bbox = draw.textbbox((0, 0), display_title, font=title_font)
         t_w = t_bbox[2] - t_bbox[0]
