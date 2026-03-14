@@ -27,6 +27,7 @@ export const StoryCanvas: React.FC<StoryCanvasProps> = ({ beats, characterName, 
     const [editingBeatId, setEditingBeatId] = useState<string | null>(null);
     const [editNarration, setEditNarration] = useState("");
     const [editTitle, setEditTitle] = useState("");
+    const [deleteConfirmBeatId, setDeleteConfirmBeatId] = useState<string | null>(null);
 
     if (!beats) return null;
 
@@ -46,13 +47,19 @@ export const StoryCanvas: React.FC<StoryCanvasProps> = ({ beats, characterName, 
     const cancelEdit = () => {
         setEditingBeatId(null);
     };
-    const handleDelete = (beatId: string) => {
-        if (onDeleteBeat && (typeof window === "undefined" || window.confirm("Remove this scene?"))) {
-            onDeleteBeat(beatId);
+    const handleDeleteClick = (beatId: string) => {
+        if (onDeleteBeat) setDeleteConfirmBeatId(beatId);
+    };
+    const confirmDelete = () => {
+        if (deleteConfirmBeatId && onDeleteBeat) {
+            onDeleteBeat(deleteConfirmBeatId);
+            setDeleteConfirmBeatId(null);
         }
     };
+    const cancelDelete = () => setDeleteConfirmBeatId(null);
 
     return (
+        <>
         <div className="flex flex-col space-y-8 w-full max-w-2xl px-4 py-8 bg-white/50 backdrop-blur-sm rounded-3xl min-h-[600px] shadow-2xl border-2 border-white">
             <div className="flex items-center justify-between border-b pb-4">
                 <h1 className="text-3xl font-black text-purple-600 drop-shadow-sm font-comic">
@@ -79,7 +86,7 @@ export const StoryCanvas: React.FC<StoryCanvasProps> = ({ beats, characterName, 
                                     )}
                                     {onDeleteBeat && (
                                         <button
-                                            onClick={() => handleDelete(beat.id)}
+                                            onClick={() => handleDeleteClick(beat.id)}
                                             className="p-2 rounded-full bg-white/90 text-red-600 hover:bg-white shadow"
                                             aria-label="Delete scene"
                                         >
@@ -153,5 +160,29 @@ export const StoryCanvas: React.FC<StoryCanvasProps> = ({ beats, characterName, 
                 </div>
             )}
         </div>
+
+        {deleteConfirmBeatId && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-title">
+                <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl border-2 border-gray-200 p-6 flex flex-col gap-4">
+                    <h2 id="delete-confirm-title" className="text-xl font-bold text-gray-800 font-comic">Remove this scene?</h2>
+                    <p className="text-gray-600 text-sm">This cannot be undone.</p>
+                    <div className="flex gap-3 justify-end mt-2">
+                        <button
+                            onClick={cancelDelete}
+                            className="px-4 py-2 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={confirmDelete}
+                            className="px-4 py-2 rounded-xl font-bold text-white bg-red-500 hover:bg-red-600 transition-colors"
+                        >
+                            Remove
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 };
