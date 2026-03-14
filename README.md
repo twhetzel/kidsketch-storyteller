@@ -2,6 +2,8 @@
 
 A children's storytelling app that turns a kid's sketch into a character, generates an interactive story with AI, supports live voice conversation with the character, and exports the story as an animated movie.
 
+**Mandatory tech:** Story beats use **Gemini's interleaved output** (text and image in a single response); Vertex Imagen 3 is used for the character image and as fallback when a beat has no inline image.
+
 ---
 
 ## Summary
