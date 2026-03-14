@@ -8,7 +8,7 @@ import { LandingIntro } from '@/components/LandingIntro';
 import { StoryCanvas } from '@/components/StoryCanvas';
 import { AnimatedCharacter } from '@/components/AnimatedCharacter';
 import { GeminiLiveMic } from '@/components/GeminiLiveMic';
-import { Loader2, Paintbrush, Sparkles } from 'lucide-react';
+import { Loader2, Paintbrush, Sparkles, X } from 'lucide-react';
 
 interface CharacterProfile {
   name: string;
@@ -32,6 +32,17 @@ interface StoryBeat {
   timestamp: number;
 }
 
+const USER_FACING_NETWORK_MSG = "Something went wrong. Please try again in a moment.";
+
+function getUserFacingMessage(error: unknown): string {
+  const msg = error instanceof Error ? error.message : String(error);
+  const lower = msg.toLowerCase();
+  if (lower.includes("failed to fetch") || lower.includes("network request failed") || lower.includes("load failed")) {
+    return USER_FACING_NETWORK_MSG;
+  }
+  return msg || USER_FACING_NETWORK_MSG;
+}
+
 export default function Home() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showCameraUI, setShowCameraUI] = useState(false);
@@ -46,6 +57,7 @@ export default function Home() {
   const [showLongWaitMessage, setShowLongWaitMessage] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [movieUrl, setMovieUrl] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const loadingRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -61,6 +73,7 @@ export default function Home() {
     if (!sessionId) return;
     setIsExporting(true);
     setMovieUrl(null);
+    setErrorMessage(null);
     try {
       const res = await fetch(`${API_URL}/session/${sessionId}/export`);
       if (!res.ok) {
@@ -71,8 +84,7 @@ export default function Home() {
       setMovieUrl(data.movieUrl);
     } catch (error: unknown) {
       console.error("Export failed:", error);
-      const message = error instanceof Error ? error.message : String(error);
-      alert(`Oops! Making the movie failed: ${message}`);
+      setErrorMessage(`Oops! Making the movie failed: ${getUserFacingMessage(error)}`);
     } finally {
       setIsExporting(false);
     }
@@ -92,6 +104,7 @@ export default function Home() {
 
   const handleCapture = async (imageSrc: string) => {
     setIsAnalyzing(true);
+    setErrorMessage(null);
     try {
       // 1. Initialize Session
       const initRes = await fetch(`${API_URL}/session/init`, {
@@ -129,6 +142,7 @@ export default function Home() {
       // 3. First beat is triggered by user clicking "Start story" (with optional story idea)
     } catch (error) {
       console.error("Failed to start story:", error);
+      setErrorMessage(getUserFacingMessage(error));
     } finally {
       setIsAnalyzing(false);
     }
@@ -148,6 +162,7 @@ export default function Home() {
       setBeats((prev) => prev.map((b) => (b.id === beatId ? { ...b, ...updated } : b)));
     } catch (e) {
       console.error("Failed to update beat:", e);
+      setErrorMessage(getUserFacingMessage(e));
     }
   };
 
@@ -158,12 +173,14 @@ export default function Home() {
       setBeats((prev) => prev.filter((b) => b.id !== beatId));
     } catch (e) {
       console.error("Failed to delete beat:", e);
+      setErrorMessage(getUserFacingMessage(e));
     }
   };
 
   const generateBeat = async (sid: string, instruction?: string, initialStory?: string) => {
     if (beats.length >= MAX_SCENES) return;
     setIsGenerating(true);
+    setErrorMessage(null);
     try {
       const params = new URLSearchParams();
       if (instruction) params.set("user_instruction", instruction);
@@ -185,8 +202,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error("Failed to generate beat:", error);
-      const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes("Maximum scenes")) alert(msg);
+      setErrorMessage(getUserFacingMessage(error));
     } finally {
       setIsGenerating(false);
     }
@@ -194,6 +210,19 @@ export default function Home() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-4 md:p-8 bg-[#fff9f0]">
+      {errorMessage && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-md flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 shadow-lg">
+          <p className="flex-1 text-sm font-medium">{errorMessage}</p>
+          <button
+            type="button"
+            onClick={() => setErrorMessage(null)}
+            className="flex-shrink-0 p-1 rounded-full hover:bg-amber-200/80 transition-colors"
+            aria-label="Dismiss"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      )}
       {!sessionId ? (
         <div className="w-full max-w-lg flex flex-col items-stretch min-h-[420px]">
           {isAnalyzing ? (
