@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 from pathlib import Path
@@ -188,8 +189,8 @@ async def create_story_beat(
         export_path = os.path.join(export_beats_dir, f"beat_{beat.id}.png")
         try:
             shutil.copy2(local_img_path, export_path)
-        except Exception as e:
-            print(f"Export copy beat image: {e}")
+        except (shutil.Error, OSError) as e:
+            logging.warning("Export copy beat image: %s", e)
     else:
         beat.imageUrl = "https://placehold.co/600x400?text=Scene+unavailable"
     
