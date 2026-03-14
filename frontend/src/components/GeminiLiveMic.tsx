@@ -178,12 +178,16 @@ export const GeminiLiveMic: React.FC<GeminiLiveMicProps> = ({ sessionId, onStop 
                 )}
                 {isActive ? <Mic size={40} /> : <MicOff size={40} />}
             </button>
-            <div className="text-center space-y-1">
-                <span className={`text-sm font-black uppercase tracking-widest ${isActive ? 'text-red-500 animate-pulse' : 'text-gray-400'}`}>
+            <div className="text-center space-y-2 w-full max-w-lg">
+                <span className={`text-sm font-black uppercase tracking-widest ${isActive ? 'text-red-500' : 'text-gray-400'}`}>
                     {isActive ? 'Listening...' : 'Tap to talk'}
                 </span>
-                {isActive && transcript && (
-                    <p className="text-xs text-gray-500 italic max-w-xs">"…{transcript}"</p>
+                {isActive && (
+                    <div className="min-h-[4rem] rounded-xl bg-white/80 border-2 border-purple-100 p-4 text-left">
+                        <p className="text-lg text-gray-700 font-medium leading-relaxed">
+                            {transcript ? `"${transcript}"` : '...'}
+                        </p>
+                    </div>
                 )}
             </div>
         </div>
