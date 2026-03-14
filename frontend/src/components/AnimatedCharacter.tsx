@@ -12,11 +12,11 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = ({ imageUrl, 
     return (
         <div className="relative group cursor-pointer">
             {/* The main card/frame */}
-            <div className={`relative aspect-square rounded-[3rem] overflow-hidden border-[12px] border-white shadow-2xl transition-all duration-700 transform ${isTalking ? 'scale-105 rotate-1 shadow-purple-200' : 'hover:scale-102 hover:-rotate-1'
+            <div className={`relative aspect-square rounded-[3rem] overflow-hidden border-[12px] border-white shadow-2xl transition-all duration-700 transform ${isTalking ? 'scale-105 rotate-1 shadow-amber-200' : 'hover:scale-102 hover:-rotate-1'
                 } animate-float`}>
 
                 {/* Background Glow */}
-                <div className={`absolute inset-0 bg-gradient-to-tr transition-opacity duration-500 ${isTalking ? 'from-purple-500/20 to-pink-500/10 opacity-100' : 'from-blue-500/5 to-purple-500/5 opacity-0'
+                <div className={`absolute inset-0 bg-gradient-to-tr transition-opacity duration-500 ${isTalking ? 'from-amber-400/20 to-sky-400/10 opacity-100' : 'from-sky-400/5 to-amber-400/5 opacity-0'
                     }`} />
 
                 {/* Character Image */}
@@ -42,7 +42,7 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = ({ imageUrl, 
                 </div>
 
                 {/* Name Tag */}
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md px-6 py-2 rounded-full shadow-lg border-2 border-purple-100">
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md px-6 py-2 rounded-full shadow-lg border-2 border-sky-100">
                     <span className="text-xl font-black text-purple-600 font-comic tracking-tight">
                         {name}
                     </span>

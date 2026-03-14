@@ -28,7 +28,7 @@ export const LandingIntro: React.FC<LandingIntroProps> = ({ onReady }) => {
       </div>
       <button
         onClick={onReady}
-        className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white py-4 px-6 rounded-xl font-bold text-lg shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+        className="w-full flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-600 text-white py-4 px-6 rounded-xl font-bold text-lg shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
       >
         <Camera size={24} />
         Let&apos;s get started

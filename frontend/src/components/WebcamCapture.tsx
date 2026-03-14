@@ -45,14 +45,14 @@ export const WebcamCapture: React.FC<WebcamCaptureProps> = ({ onCapture }) => {
                         <div className="flex-1 min-h-4 w-full" />
                         <button
                             onClick={startCamera}
-                            className="w-full flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white py-4 px-6 rounded-xl font-bold shadow-lg transition-all hover:scale-[1.02] flex-shrink-0"
+                            className="w-full flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-600 text-white py-4 px-6 rounded-xl font-bold shadow-lg transition-all hover:scale-[1.02] flex-shrink-0"
                         >
                             <Camera size={24} />
                             Start camera
                         </button>
                     </div>
                 ) : (
-                <div className="relative w-full rounded-xl overflow-hidden border-4 border-blue-400">
+                <div className="relative w-full rounded-xl overflow-hidden border-4 border-sky-300">
                     <Webcam
                         audio={false}
                         ref={webcamRef}
@@ -61,7 +61,7 @@ export const WebcamCapture: React.FC<WebcamCaptureProps> = ({ onCapture }) => {
                     />
                     <button
                         onClick={capture}
-                        className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-full shadow-lg transition-transform hover:scale-110"
+                        className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-sky-500 hover:bg-sky-600 text-white p-4 rounded-full shadow-lg transition-transform hover:scale-110"
                     >
                         <Camera size={28} />
                     </button>

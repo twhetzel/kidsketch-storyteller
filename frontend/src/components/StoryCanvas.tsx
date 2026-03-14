@@ -65,7 +65,7 @@ export const StoryCanvas: React.FC<StoryCanvasProps> = ({ beats, characterName, 
                 <h1 className="text-3xl font-black text-purple-600 drop-shadow-sm font-comic">
                     {characterName}'s Adventure
                 </h1>
-                <Sparkles className="text-yellow-400 animate-pulse" />
+                <Sparkles className="text-amber-500 animate-pulse" />
             </div>
 
             <div className="space-y-12">
@@ -78,7 +78,7 @@ export const StoryCanvas: React.FC<StoryCanvasProps> = ({ beats, characterName, 
                                     {onEditBeat && (
                                         <button
                                             onClick={() => startEdit(beat)}
-                                            className="p-2 rounded-full bg-white/90 text-purple-600 hover:bg-white shadow"
+                                            className="p-2 rounded-full bg-white/90 text-sky-600 hover:bg-white shadow"
                                             aria-label="Edit scene"
                                         >
                                             <Pencil size={18} />
@@ -124,20 +124,20 @@ export const StoryCanvas: React.FC<StoryCanvasProps> = ({ beats, characterName, 
                         </div>
 
                         {index < beats.length - 1 && (
-                            <div className="h-16 w-1 bg-gradient-to-b from-purple-200 to-transparent mt-4 rounded-full opacity-50" />
+                            <div className="h-16 w-1 bg-gradient-to-b from-sky-200 to-transparent mt-4 rounded-full opacity-50" />
                         )}
                     </div>
                 ))}
 
                 {isGenerating && (
                     <div ref={loadingRef} className="flex flex-col items-center space-y-4">
-                        <div className="w-full aspect-video bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border-8 border-dashed border-purple-200 flex flex-col items-center justify-center gap-3">
-                            <div className="w-10 h-10 border-4 border-purple-400 border-t-transparent rounded-full animate-spin" />
-                            <span className="text-purple-400 font-bold text-lg">
+                        <div className="w-full aspect-video bg-gradient-to-br from-sky-50 to-sky-100 rounded-2xl border-8 border-dashed border-sky-200 flex flex-col items-center justify-center gap-3">
+                            <div className="w-10 h-10 border-4 border-sky-400 border-t-transparent rounded-full animate-spin" />
+                            <span className="text-sky-700 font-bold text-lg">
                                 {isFirstBeat ? 'Creating your first scene...' : 'Drawing the next scene...'} 🖌️✨
                             </span>
                             {showLongWaitMessage && (
-                                <span className="text-purple-500/90 text-sm font-medium">Taking a bit longer to draw this scene...</span>
+                                <span className="text-sky-600/90 text-sm font-medium">Taking a bit longer to draw this scene...</span>
                             )}
                         </div>
                     </div>
@@ -151,7 +151,7 @@ export const StoryCanvas: React.FC<StoryCanvasProps> = ({ beats, characterName, 
                     ) : (
                         <button
                             onClick={onNext}
-                            className="flex items-center space-x-3 bg-purple-600 hover:bg-purple-700 text-white px-8 py-4 rounded-full font-bold shadow-2xl transition-all hover:scale-105 active:scale-95 group"
+                            className="flex items-center space-x-3 bg-sky-500 hover:bg-sky-600 text-white px-8 py-4 rounded-full font-bold shadow-2xl transition-all hover:scale-105 active:scale-95 group"
                         >
                             <MessageSquare className="group-hover:animate-bounce" />
                             <span>Ask for more!</span>
