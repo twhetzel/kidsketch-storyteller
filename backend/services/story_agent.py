@@ -152,25 +152,19 @@ class StoryAgent:
         }
 
     def _parse_beat_text(self, text: str) -> dict:
-        """Parse TITLE:, NARRATION:, IMAGE_PROMPT: from interleaved beat text."""
-        out = {
-            "sceneTitle": "A New Chapter",
-            "narration": "Something magical happens!",
-            "imagePrompt": "A magical scene in a children's storybook",
-        }
-        if not text or not isinstance(text, str):
-            return out
-        # Match TITLE: ... (until NARRATION: or end)
-        title_m = re.search(r"TITLE:\s*(.+?)(?=NARRATION:|$)", text, re.DOTALL | re.IGNORECASE)
-        if title_m:
-            out["sceneTitle"] = title_m.group(1).strip()[:STORY_BEAT_TITLE_MAX]
-        narr_m = re.search(r"NARRATION:\s*(.+?)(?=IMAGE_PROMPT:|$)", text, re.DOTALL | re.IGNORECASE)
-        if narr_m:
-            out["narration"] = narr_m.group(1).strip()[:STORY_BEAT_NARRATION_MAX]
-        prompt_m = re.search(r"IMAGE_PROMPT:\s*(.+?)$", text, re.DOTALL | re.IGNORECASE)
-        if prompt_m:
-            out["imagePrompt"] = prompt_m.group(1).strip()[:STORY_BEAT_IMAGE_PROMPT_MAX]
-        return self._validate_story_beat_output(out)
+        """Parse TITLE:, NARRATION:, IMAGE_PROMPT: from interleaved beat text. Defaults and truncation are applied by _validate_story_beat_output."""
+        data = {}
+        if text and isinstance(text, str):
+            title_m = re.search(r"TITLE:\s*(.+?)(?=NARRATION:|$)", text, re.DOTALL | re.IGNORECASE)
+            if title_m:
+                data["sceneTitle"] = title_m.group(1).strip()
+            narr_m = re.search(r"NARRATION:\s*(.+?)(?=IMAGE_PROMPT:|$)", text, re.DOTALL | re.IGNORECASE)
+            if narr_m:
+                data["narration"] = narr_m.group(1).strip()
+            prompt_m = re.search(r"IMAGE_PROMPT:\s*(.+?)$", text, re.DOTALL | re.IGNORECASE)
+            if prompt_m:
+                data["imagePrompt"] = prompt_m.group(1).strip()
+        return self._validate_story_beat_output(data)
 
     async def generate_next_beat(
         self, state: StoryState, plan: StoryPlan, user_input: Optional[str] = None
