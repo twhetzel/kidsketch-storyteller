@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 import { WebcamCapture } from '@/components/WebcamCapture';
 import { LandingIntro } from '@/components/LandingIntro';
 import { StoryCanvas } from '@/components/StoryCanvas';
@@ -60,7 +62,7 @@ export default function Home() {
     setIsExporting(true);
     setMovieUrl(null);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/session/${sessionId}/export`);
+      const res = await fetch(`${API_URL}/session/${sessionId}/export`);
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.detail || `Export failed: ${res.status}`);
@@ -92,7 +94,7 @@ export default function Home() {
     setIsAnalyzing(true);
     try {
       // 1. Initialize Session
-      const initRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/session/init`, {
+      const initRes = await fetch(`${API_URL}/session/init`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sketch_url: "pending" })
@@ -109,7 +111,7 @@ export default function Home() {
 
       // 2. Upload and Analyze
       const blob = await (await fetch(imageSrc)).blob();
-      const analyzeRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/session/${sessionId}/analyze`, {
+      const analyzeRes = await fetch(`${API_URL}/session/${sessionId}/analyze`, {
         method: 'POST',
         body: blob,
       });
@@ -136,7 +138,7 @@ export default function Home() {
 
   const updateBeat = async (sid: string, beatId: string, updates: { narration?: string; sceneTitle?: string }) => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/session/${sid}/beat/${beatId}`, {
+      const res = await fetch(`${API_URL}/session/${sid}/beat/${beatId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updates),
@@ -151,7 +153,7 @@ export default function Home() {
 
   const deleteBeat = async (sid: string, beatId: string) => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/session/${sid}/beat/${beatId}`, { method: "DELETE" });
+      const res = await fetch(`${API_URL}/session/${sid}/beat/${beatId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
       setBeats((prev) => prev.filter((b) => b.id !== beatId));
     } catch (e) {
@@ -167,7 +169,7 @@ export default function Home() {
       if (instruction) params.set("user_instruction", instruction);
       if (initialStory?.trim()) params.set("initial_storyline", initialStory.trim());
       const qs = params.toString();
-      const url = `${process.env.NEXT_PUBLIC_API_URL}/session/${sid}/beat${qs ? `?${qs}` : ""}`;
+      const url = `${API_URL}/session/${sid}/beat${qs ? `?${qs}` : ""}`;
 
       const beatRes = await fetch(url, { method: 'POST' });
       if (!beatRes.ok) {

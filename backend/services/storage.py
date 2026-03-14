@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import aiohttp
 from datetime import datetime, timezone
 from urllib.parse import urlparse
@@ -52,7 +53,7 @@ class StorageService:
                         await asyncio.to_thread(blob.download_to_filename, local_path)
                         return
             except Exception as e:
-                print(f"GCS download from URL failed: {e}")
+                logging.warning("GCS download from URL failed: %s", e)
             # Fall through to aiohttp if parse or download failed
         if f"/{self.bucket.name}/" in remote_url:
             # Our bucket — offload blocking SDK call to a thread
