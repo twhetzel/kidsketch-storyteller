@@ -10,6 +10,7 @@ USER_INPUT_MAX_LEN = 500
 STORY_BEAT_TITLE_MAX = 120
 STORY_BEAT_NARRATION_MAX = 600
 STORY_BEAT_IMAGE_PROMPT_MAX = 1200
+HISTORY_SUMMARY_MAX_LEN = 4000  # cap on "story so far" in generate_movie_plan (second-order injection)
 
 
 class StoryAgent:
@@ -267,11 +268,26 @@ Instruction: {sanitized_instruction}"""
         except Exception as e:
             print(f"Error updating narrative: {e}")
 
+    def _sanitize_history_for_prompt(self, history: list) -> str:
+        """
+        Build a length-limited summary from story history for use in prompts.
+        Sanitizes each beat's title/narration to limit second-order prompt injection.
+        """
+        lines = []
+        for b in history:
+            title = (str(b.sceneTitle).strip() if getattr(b, "sceneTitle", None) else "")[:STORY_BEAT_TITLE_MAX]
+            narration = (str(b.narration).strip() if getattr(b, "narration", None) else "")[:STORY_BEAT_NARRATION_MAX]
+            if title or narration:
+                lines.append(f"- {title}: {narration}")
+        summary = "\n".join(lines)
+        return summary[:HISTORY_SUMMARY_MAX_LEN]
+
     async def generate_movie_plan(self, state: StoryState) -> MoviePlan:
         """
         Creates a 4-shot cinematic movie plan based on the story session.
+        History summary is sanitized and length-limited to reduce second-order prompt injection.
         """
-        history_summary = "\n".join([f"- {b.sceneTitle}: {b.narration}" for b in state.history])
+        history_summary = self._sanitize_history_for_prompt(state.history)
 
         system_instruction = """You are a film director for children's animated movies.
 
