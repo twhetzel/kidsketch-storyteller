@@ -170,7 +170,7 @@ export const GeminiLiveMic: React.FC<GeminiLiveMicProps> = ({ sessionId, onStop 
                 onClick={toggleMic}
                 className={`group relative p-8 rounded-full shadow-[0_0_50px_rgba(0,0,0,0.1)] transition-all hover:scale-110 active:scale-95 ${isActive
                     ? 'bg-red-500 text-white'
-                    : 'bg-white text-purple-600 border-4 border-purple-50'
+                    : 'bg-white text-sky-600 border-4 border-sky-50'
                     }`}
             >
                 {isActive && (
@@ -183,7 +183,7 @@ export const GeminiLiveMic: React.FC<GeminiLiveMicProps> = ({ sessionId, onStop 
                     {isActive ? 'Listening...' : 'Tap to talk'}
                 </span>
                 {isActive && (
-                    <div className="min-h-[4rem] rounded-xl bg-white/80 border-2 border-purple-100 p-4 text-left">
+                    <div className="min-h-[4rem] rounded-xl bg-white/80 border-2 border-sky-100 p-4 text-left">
                         <p className="text-lg text-gray-700 font-medium leading-relaxed">
                             {transcript ? `"${transcript}"` : '...'}
                         </p>

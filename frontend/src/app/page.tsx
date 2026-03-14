@@ -227,7 +227,7 @@ export default function Home() {
         <div className="w-full max-w-lg flex flex-col items-stretch min-h-[420px]">
           {isAnalyzing ? (
             <div className="w-full flex flex-col items-center justify-center space-y-6 p-6 md:p-8 bg-white rounded-3xl shadow-2xl border border-gray-300 min-h-[420px]">
-              <Loader2 className="w-16 h-16 text-purple-500 animate-spin" />
+              <Loader2 className="w-16 h-16 text-sky-500 animate-spin" />
               <h2 className="text-2xl font-bold text-gray-700 font-comic">Looking at your drawing... ✨</h2>
               <p className="text-gray-400 text-center italic">"I think I see a hero in there!"</p>
             </div>
@@ -255,7 +255,7 @@ export default function Home() {
                       <Sparkles className="w-8 h-8 text-amber-500 animate-pulse" />
                       <Paintbrush className="w-10 h-10 text-purple-500 animate-bounce delay-150" />
                     </div>
-                    <p className="text-xl font-bold text-purple-600 font-comic text-center">
+                    <p className="text-xl font-bold text-sky-700 font-comic text-center">
                       Converting your drawing into a character...
                     </p>
                     <p className="text-gray-500 text-sm mt-2 text-center italic">Something magical is happening!</p>
@@ -289,18 +289,18 @@ export default function Home() {
           )}
 
           {characterModel && beats.length === 0 && !isGenerating && (
-            <div className="w-full max-w-md flex flex-col items-center gap-4 p-6 bg-white/80 rounded-2xl border-2 border-purple-100">
+            <div className="w-full max-w-md flex flex-col items-center gap-4 p-6 bg-white/80 rounded-2xl border-2 border-gray-200">
               <label className="text-sm font-bold text-gray-700 font-comic">Story idea (optional)</label>
               <textarea
                 value={initialStoryline}
                 onChange={(e) => setInitialStoryline(e.target.value)}
                 placeholder="e.g. The hero finds a magic key in the forest..."
-                className="w-full min-h-[80px] px-4 py-3 rounded-xl border-2 border-purple-200 text-gray-700 placeholder-gray-400 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none resize-y"
+                className="w-full min-h-[80px] px-4 py-3 rounded-xl border-2 border-purple-200 bg-gray-100 text-gray-700 placeholder-gray-400 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none resize-y"
                 maxLength={500}
               />
               <button
                 onClick={() => sessionId && generateBeat(sessionId, undefined, initialStoryline)}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white py-4 px-6 rounded-xl font-bold shadow-lg transition-all hover:scale-[1.02]"
+                className="w-full bg-sky-500 hover:bg-sky-600 text-white py-4 px-6 rounded-xl font-bold shadow-lg transition-all hover:scale-[1.02]"
               >
                 Start story
               </button>
@@ -350,7 +350,7 @@ export default function Home() {
                 href={movieUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-600 font-bold underline animate-bounce"
+                className="text-sky-600 font-bold underline animate-bounce"
               >
                 Click here to see your movie! 🍿
               </a>
