@@ -1,0 +1,34 @@
+# Optional: Cloud Build trigger for KidSketch Storyteller.
+# Connect this repo to Cloud Build and set substitution variables:
+#   _GCS_BUCKET_NAME, _REGION (optional, default us-central1)
+# For full deploy (backend + frontend), use scripts/deploy.sh instead.
+# This file documents an alternative CI/CD path; deploy.sh is the primary automation.
+
+# Example: build backend image only (no deploy)
+# steps:
+#   - name: 'gcr.io/cloud-builders/docker'
+#     dir: backend
+#     args: ['build', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/cloud-run-images/kidsketch-backend:latest', '.']
+# images:
+#   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/cloud-run-images/kidsketch-backend:latest'
+
+# To run the full deployment from Cloud Build, use a trigger that runs:
+#   scripts/deploy.sh
+# with PROJECT_ID and GCS_BUCKET_NAME from substitutions or Secret Manager.
+
+substitutions:
+  _REGION: us-central1
+  _GCS_BUCKET_NAME: ''
+
+steps:
+  - name: 'ubuntu'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "Use scripts/deploy.sh for full deploy. This trigger is a placeholder."
+        echo "Configure PROJECT_ID, GCS_BUCKET_NAME and run: ./scripts/deploy.sh"
+        exit 0
+
+options:
+  logging: CLOUD_LOGGING_ONLY

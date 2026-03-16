@@ -39,10 +39,50 @@ app.add_middleware(
 
 
 
+SESSION_STATE_PREFIX = "sessions"
+
 # In-memory session store: sessionId -> StoryState
 sessions = {}
 
 MAX_BEATS_PER_SESSION = 6
+
+
+async def _session_state_path(session_id: str) -> str:
+    """Relative path in GCS where we persist session state."""
+    return f"{SESSION_STATE_PREFIX}/{session_id}/state.json"
+
+
+async def load_session_or_404(session_id: str) -> StoryState:
+    """
+    Load a session from in-memory cache or GCS.
+    Raises HTTPException(404) if not found anywhere.
+    """
+    if session_id in sessions:
+        return sessions[session_id]
+
+    state_path = await _session_state_path(session_id)
+    tmp_path = f"/tmp/{session_id}_state.json"
+    remote_url = f"https://storage.googleapis.com/{storage_service.bucket.name}/{state_path}"
+
+    try:
+        await storage_service.download_file(remote_url, tmp_path)
+        data = Path(tmp_path).read_text()
+        state = StoryState.parse_raw(data)
+        sessions[session_id] = state
+        return state
+    except Exception:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+
+async def save_session_state(session_id: str, state: StoryState) -> None:
+    """
+    Persist session state both in memory and in GCS so it survives Cloud Run restarts.
+    """
+    sessions[session_id] = state
+    tmp_path = f"/tmp/{session_id}_state.json"
+    Path(tmp_path).write_text(state.json())
+    state_path = await _session_state_path(session_id)
+    await storage_service.upload_file(tmp_path, state_path)
 
 @app.get("/")
 async def root():
@@ -69,24 +109,23 @@ async def initialize_session(req: SessionInitRequest):
         history=[]
     )
     
-    sessions[session_id] = new_state
+    await save_session_state(session_id, new_state)
     return {"sessionId": session_id, "state": new_state}
 
 @app.post("/session/{session_id}/analyze")
 async def analyze_sketch(session_id: str, request: Request):
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
+    state = await load_session_or_404(session_id)
     
     # 1. Analyze raw drawing
     image_bytes = await request.body()
     
     # Upload original sketch to GCS for fallback use
     sketch_path = f"sessions/{session_id}/sketch.png"
-    sessions[session_id].sourceSketchUrl = await storage_service.upload_bytes(image_bytes, sketch_path)
+    state.sourceSketchUrl = await storage_service.upload_bytes(image_bytes, sketch_path)
     
     # 2. Character profile + illustration via Gemini interleaved (text + optional image)
     profile, inline_char_image_bytes, design_data = await story_agent.analyze_drawing_and_generate_character_image(image_bytes)
-    sessions[session_id].characterProfile = profile
+    state.characterProfile = profile
 
     local_char_path = f"/tmp/{session_id}_character.png"
     character_image_ready = False
@@ -103,7 +142,7 @@ async def analyze_sketch(session_id: str, request: Request):
         remote_char_path = f"sessions/{session_id}/character_model.png"
         char_url = await storage_service.upload_file(local_char_path, remote_char_path)
     else:
-        char_url = sessions[session_id].sourceSketchUrl if sessions[session_id].sourceSketchUrl != "pending" else "https://placehold.co/600x400?text=Drawing+in+progress...🎨"
+        char_url = state.sourceSketchUrl if state.sourceSketchUrl != "pending" else "https://placehold.co/600x400?text=Drawing+in+progress...🎨"
 
     # 3. Store CharacterModel
     char_model = CharacterModel(
@@ -111,8 +150,9 @@ async def analyze_sketch(session_id: str, request: Request):
         traits=design_data["detailedTraits"],
         basePrompt=design_data["visualPrompt"]
     )
-    sessions[session_id].characterModel = char_model
+    state.characterModel = char_model
     
+    await save_session_state(session_id, state)
     return {
         "profile": profile,
         "model": char_model
@@ -128,10 +168,7 @@ async def create_story_beat(
     user_instruction: Optional[str] = None,
     initial_storyline: Optional[str] = None,
 ):
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    state = sessions[session_id]
+    state = await load_session_or_404(session_id)
     if len(state.history) >= MAX_BEATS_PER_SESSION:
         raise HTTPException(status_code=403, detail=f"Maximum of {MAX_BEATS_PER_SESSION} scenes per story reached.")
 
@@ -206,9 +243,7 @@ async def create_story_beat(
 
 @app.patch("/session/{session_id}/beat/{beat_id}")
 async def update_story_beat(session_id: str, beat_id: str, body: BeatUpdateBody):
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    state = sessions[session_id]
+    state = await load_session_or_404(session_id)
     for beat in state.history:
         if beat.id == beat_id:
             # Keep existing value when client sends empty/whitespace; clearing is not supported.
@@ -216,27 +251,27 @@ async def update_story_beat(session_id: str, beat_id: str, body: BeatUpdateBody)
                 beat.narration = body.narration[:600].strip() or beat.narration
             if body.sceneTitle is not None:
                 beat.sceneTitle = body.sceneTitle[:120].strip() or beat.sceneTitle
+            await save_session_state(session_id, state)
             return beat
     raise HTTPException(status_code=404, detail="Beat not found")
 
 @app.delete("/session/{session_id}/beat/{beat_id}")
 async def delete_story_beat(session_id: str, beat_id: str):
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    state = sessions[session_id]
+    state = await load_session_or_404(session_id)
     for i, beat in enumerate(state.history):
         if beat.id == beat_id:
             state.history.pop(i)
+            await save_session_state(session_id, state)
             return {"ok": True}
     raise HTTPException(status_code=404, detail="Beat not found")
 
 @app.websocket("/ws/live/{session_id}")
 async def live_voice_endpoint(websocket: WebSocket, session_id: str):
-    if session_id not in sessions:
+    try:
+        state = await load_session_or_404(session_id)
+    except HTTPException:
         await websocket.close(code=1008)
         return
-
-    state = sessions[session_id]
     await websocket.accept()
     
     # Construct the instruction using clear delimiters to isolate untrusted data 
@@ -267,10 +302,7 @@ async def live_voice_endpoint(websocket: WebSocket, session_id: str):
 
 @app.get("/session/{session_id}/export")
 async def export_movie(session_id: str):
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    state = sessions[session_id]
+    state = await load_session_or_404(session_id)
     if not state.history:
         return {"error": "No story beats to export"}
     
@@ -325,6 +357,7 @@ async def export_movie(session_id: str):
         )
         remote_path = f"sessions/{session_id}/living_movie.mp4"
         url = await storage_service.upload_file(output_path, remote_path)
+        await save_session_state(session_id, state)
         return {"movieUrl": url}
     except Exception as e:
         print(f"Export Error: {e}")
