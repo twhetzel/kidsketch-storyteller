@@ -28,7 +28,7 @@ flowchart TB
 
     %% Managed GCP services
     subgraph GCP[Google Cloud Services]
-        GCS["GCS Bucket: sketches, images, audio, movies"]
+        GCS["GCS Bucket (assets)"]
         VA["Vertex AI Imagen 3 (fallback)"]
         GEM["Gemini API (text + vision + Live)"]
         SM["Secret Manager GEMINI_API_KEY"]
