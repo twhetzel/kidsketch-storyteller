@@ -316,10 +316,10 @@ class VideoEngine:
             if os.path.exists(fp):
                 try:
                     return ImageFont.truetype(fp, size)
-                except Exception:
-                    # Try next candidate if this one cannot be loaded
+                except OSError as e:
+                    logging.warning("Failed to load font %s: %s", fp, e)
                     continue
-
+        logging.warning("Falling back to default PIL font; no configured fonts could be loaded.")
         return ImageFont.load_default()
 
     def _create_end_card_image(self, output_path: str, width: int = 1280, height: int = 720):
