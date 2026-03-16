@@ -10,6 +10,8 @@ A children's storytelling app that turns a kid's sketch into a character, genera
 
 KidSketch Storyteller lets a child **draw a character** (e.g., via webcam or upload). The app uses **Gemini** to analyze the drawing and create a character profile, **Vertex AI Imagen 3** to generate a polished character image, and **Gemini** (with interleaved text+image output) to produce story beats—narration and scene images in a single response. When Gemini doesn’t return an image, **Imagen 3** is used as fallback for the scene. The child can **talk to the character** in real time via **Gemini Multimodal Live** (voice-in, voice-out). Story beats are assembled into an **animated movie** (FFmpeg + gTTS) and stored in **Google Cloud Storage**. All session state is held **in memory** in the backend; media assets (sketches, images, audio, final video) are persisted in GCS.
 
+**Live demo:** The app is currently deployed at [`https://kidsketch-frontend-172256084232.us-central1.run.app/`](https://kidsketch-frontend-172256084232.us-central1.run.app/).
+
 ---
 
 ## Features and Functionality
@@ -130,6 +132,18 @@ flowchart TB
 
 - **Backend**: Set `GEMINI_API_KEY`, `GOOGLE_CLOUD_PROJECT`, `GCS_BUCKET_NAME`, and optionally `ALLOWED_ORIGINS`. Run from `backend/` with `python main.py` or `uvicorn main:app --host 0.0.0.0 --port 8000`.
 - **Frontend**: Set `NEXT_PUBLIC_API_URL` (e.g. `http://localhost:8000`). Run from `frontend/` with `npm run dev` (default port 3000).
+
+### Deploy to Google Cloud (GCP)
+
+To run the app on **Google Cloud** (Cloud Run) for the hackathon or production, see **[DEPLOYMENT.md](DEPLOYMENT.md)** for full instructions.
+
+**Prerequisites:** [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) (`gcloud`), a GCP project with billing enabled, and your Gemini API key in Secret Manager.
+
+**One-line deploy** (after creating the `gemini-api-key` secret and setting variables):
+
+```bash
+PROJECT_ID=your-project GCS_BUCKET_NAME=your-bucket ./scripts/deploy.sh
+```
 
 ---
 

@@ -1,0 +1,24 @@
+# Builds the Next.js frontend image with NEXT_PUBLIC_API_URL set at build time.
+# Invoked by scripts/deploy.sh with: gcloud builds submit . --config=cloudbuild.yaml
+#   --substitutions=_NEXT_PUBLIC_API_URL=https://backend-url.run.app
+# Do not run from repo root; run from frontend/ so Docker context is correct.
+
+substitutions:
+  _NEXT_PUBLIC_API_URL: ''
+
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_API_URL=${_NEXT_PUBLIC_API_URL}'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/cloud-run-images/kidsketch-frontend:latest'
+      - '.'
+    id: build
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/cloud-run-images/kidsketch-frontend:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
