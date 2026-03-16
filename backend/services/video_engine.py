@@ -301,18 +301,25 @@ class VideoEngine:
                 f.write(f"file '{escaped}'\n")
 
     def _load_font(self, size: int):
-        """Load a system font at the given size; fall back to default if none found."""
+        """Load a bundled font if available; fall back to common system fonts."""
+        project_root = os.path.dirname(os.path.dirname(__file__))  # points at backend/
+        bundled_font = os.path.join(project_root, "assets", "fonts", "kidsketch_endcard_sans.ttf")
+
         font_paths = [
+            bundled_font,
             "/System/Library/Fonts/SFNS.ttf",
             "/System/Library/Fonts/SFNSRounded.ttf",
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",  # Linux fallback
         ]
+
         for fp in font_paths:
             if os.path.exists(fp):
                 try:
                     return ImageFont.truetype(fp, size)
-                except Exception:
-                    pass
+                except OSError as e:
+                    logging.warning("Failed to load font %s: %s", fp, e)
+                    continue
+        logging.warning("Falling back to default PIL font; no configured fonts could be loaded.")
         return ImageFont.load_default()
 
     def _create_end_card_image(self, output_path: str, width: int = 1280, height: int = 720):
