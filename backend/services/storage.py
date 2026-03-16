@@ -68,6 +68,45 @@ class StorageService:
                     content = await response.read()
             await asyncio.to_thread(_write_bytes, local_path, content)
 
+    async def download_text_with_generation(self, remote_path: str) -> tuple[str, int | None]:
+        """
+        Download the given object from this bucket as UTF-8 text and return it
+        together with its current generation number. Raises FileNotFoundError
+        if the object does not exist.
+        """
+        blob = await asyncio.to_thread(self.bucket.get_blob, remote_path)
+        if blob is None:
+            raise FileNotFoundError(f"GCS object not found: {remote_path}")
+        data = await asyncio.to_thread(blob.download_as_bytes)
+        return data.decode("utf-8"), blob.generation
+
+    async def upload_text_with_generation(
+        self,
+        data: str,
+        remote_path: str,
+        generation: int | None,
+        content_type: str = "application/json",
+    ) -> int:
+        """
+        Upload UTF-8 text to GCS with optimistic locking based on the provided
+        generation. When generation is None, this will only succeed if the
+        object does not yet exist (if_generation_match = 0).
+        Returns the new generation of the stored object.
+        """
+        blob = self.bucket.blob(remote_path)
+        blob.metadata = _created_metadata()
+
+        kwargs = {"content_type": content_type}
+        if generation is None:
+            # Only create if the object does not exist yet
+            kwargs["if_generation_match"] = 0
+        else:
+            # Only succeed if the existing generation matches
+            kwargs["if_generation_match"] = generation
+
+        await asyncio.to_thread(blob.upload_from_string, data, **kwargs)
+        return blob.generation
+
 
 def _write_bytes(path: str, data: bytes) -> None:
     """Helper to write bytes to disk (called via asyncio.to_thread)."""

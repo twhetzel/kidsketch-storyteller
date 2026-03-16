@@ -45,9 +45,11 @@ else
   echo "Service account $BACKEND_SA_EMAIL already exists"
 fi
 
-# Grant backend SA access to the GCS bucket (bucket-level IAM)
-echo "Granting backend SA access to GCS bucket gs://$GCS_BUCKET_NAME"
-gsutil iam ch "serviceAccount:${BACKEND_SA_EMAIL}:objectAdmin" "gs://${GCS_BUCKET_NAME}" 2>/dev/null || {
+# Grant backend SA access to the GCS bucket (bucket-level IAM) with least privilege.
+# legacyBucketWriter allows creating, overwriting, and listing objects without granting
+# administrative control over object ACLs/IAM.
+echo "Granting backend SA legacyBucketWriter access to GCS bucket gs://$GCS_BUCKET_NAME"
+gsutil iam ch "serviceAccount:${BACKEND_SA_EMAIL}:legacyBucketWriter" "gs://${GCS_BUCKET_NAME}" 2>/dev/null || {
   echo "Note: Bucket gs://$GCS_BUCKET_NAME may not exist yet. Create it with: gsutil mb -p $PROJECT_ID -l $REGION gs://$GCS_BUCKET_NAME"
 }
 
@@ -89,7 +91,8 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
 if ! gsutil ls "gs://${GCS_BUCKET_NAME}" &>/dev/null; then
   echo "Creating GCS bucket gs://$GCS_BUCKET_NAME"
   gsutil mb -p "$PROJECT_ID" -l "$REGION" "gs://${GCS_BUCKET_NAME}"
-  gsutil iam ch "serviceAccount:${BACKEND_SA_EMAIL}:objectAdmin" "gs://${GCS_BUCKET_NAME}"
+  echo "Granting backend SA legacyBucketWriter access to newly created bucket gs://$GCS_BUCKET_NAME"
+  gsutil iam ch "serviceAccount:${BACKEND_SA_EMAIL}:legacyBucketWriter" "gs://${GCS_BUCKET_NAME}"
 fi
 
 # Artifact Registry repo for frontend image (used by deploy.sh)

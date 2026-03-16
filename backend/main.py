@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import shutil
@@ -6,8 +7,9 @@ from uuid import uuid4
 from typing import Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from dotenv import load_dotenv
+from google.api_core.exceptions import PreconditionFailed
 
 from schemas import StoryState, StoryPlan, CharacterProfile, StoryBeat, CharacterModel, MoviePlan, ShotPlan
 from services.story_agent import StoryAgent
@@ -61,17 +63,27 @@ async def load_session_or_404(session_id: str) -> StoryState:
         return sessions[session_id]
 
     state_path = await _session_state_path(session_id)
-    tmp_path = f"/tmp/{session_id}_state.json"
-    remote_url = f"https://storage.googleapis.com/{storage_service.bucket.name}/{state_path}"
-
     try:
-        await storage_service.download_file(remote_url, tmp_path)
-        data = Path(tmp_path).read_text()
+        data, generation = await storage_service.download_text_with_generation(state_path)
         state = StoryState.parse_raw(data)
-        sessions[session_id] = state
-        return state
-    except Exception:
+    except FileNotFoundError:
+        # No state object exists yet for this session.
         raise HTTPException(status_code=404, detail="Session not found")
+    except (ValidationError, json.JSONDecodeError) as e:
+        # The persisted state is present but cannot be parsed into our schema.
+        logging.error("Session state for %s is corrupted: %s", session_id, e)
+        raise HTTPException(status_code=500, detail="Session state is corrupted")
+    except Exception as e:
+        # Any other unexpected error when loading session state.
+        logging.error("Unexpected error loading session %s: %s", session_id, e)
+        raise HTTPException(
+            status_code=500,
+            detail="An internal error occurred while loading the session.",
+        )
+    # Attach the current GCS generation for optimistic locking on save
+    state._gcs_generation = generation
+    sessions[session_id] = state
+    return state
 
 
 async def save_session_state(session_id: str, state: StoryState) -> None:
@@ -79,10 +91,24 @@ async def save_session_state(session_id: str, state: StoryState) -> None:
     Persist session state both in memory and in GCS so it survives Cloud Run restarts.
     """
     sessions[session_id] = state
-    tmp_path = f"/tmp/{session_id}_state.json"
-    Path(tmp_path).write_text(state.json())
     state_path = await _session_state_path(session_id)
-    await storage_service.upload_file(tmp_path, state_path)
+    # Use optimistic locking based on the last seen generation, if any.
+    current_generation = getattr(state, "_gcs_generation", None)
+    try:
+        new_generation = await storage_service.upload_text_with_generation(
+            state.json(),
+            state_path,
+            current_generation,
+        )
+    except PreconditionFailed:
+        # Another request updated this session between our read and write.
+        # Return a conflict so the client can reload the latest state.
+        raise HTTPException(
+            status_code=409,
+            detail="Session was modified by another request. Please reload and retry your change.",
+        )
+    # Remember the new generation for any subsequent updates in this process.
+    state._gcs_generation = new_generation
 
 @app.get("/")
 async def root():
