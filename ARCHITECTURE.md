@@ -8,7 +8,7 @@ This document gives a high-level view of how the KidSketch Storyteller system is
 flowchart TB
     %% Client
     subgraph Client
-        U[Child / Parent\nWeb Browser]
+        U[Child / Parent<br/>Web Browser]
     end
 
     %% Frontend on Cloud Run
@@ -18,20 +18,20 @@ flowchart TB
 
     %% Backend on Cloud Run
     subgraph BE[Cloud Run - kidsketch-backend]
-        B[FastAPI Service\n(main.py)]
-        SA[StoryAgent\n(primary: Gemini)]
-        IMG[ImageGenService\n(optional: Imagen 3)]
-        VE[VideoEngine\n(ffmpeg, Pillow)]
-        ST[StorageService\n(session state, assets)]
-        MM[MultimodalLiveBridge\n(WebSocket to Gemini Live)]
+        B[FastAPI Service<br/>(main.py)]
+        SA[StoryAgent<br/>(primary: Gemini)]
+        IMG[ImageGenService<br/>(optional: Imagen 3)]
+        VE[VideoEngine<br/>(ffmpeg, Pillow)]
+        ST[StorageService<br/>(session state, assets)]
+        MM[MultimodalLiveBridge<br/>(WebSocket to Gemini Live)]
     end
 
     %% Managed GCP services
     subgraph GCP[Google Cloud Services]
-        GCS[(GCS Bucket\nsketches, images,\naudio, movies)]
-        VA[Vertex AI\nImagen 3 (fallback)]
-        GEM[Gemini API\n(text + vision + Live)]
-        SM[Secret Manager\nGEMINI_API_KEY]
+        GCS[(GCS Bucket<br/>sketches, images,<br/>audio, movies)]
+        VA[Vertex AI<br/>Imagen 3 (fallback)]
+        GEM[Gemini API<br/>(text + vision + Live)]
+        SM[Secret Manager<br/>GEMINI_API_KEY]
     end
 
     %% Flow: top → bottom
