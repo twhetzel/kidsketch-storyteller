@@ -18,31 +18,31 @@ flowchart TB
 
     %% Backend on Cloud Run
     subgraph BE[Cloud Run - kidsketch-backend]
-        B[FastAPI Service (main.py)]
-        SA[StoryAgent (primary: Gemini)]
-        IMG[ImageGenService (optional: Imagen 3)]
-        VE[VideoEngine (ffmpeg, Pillow)]
-        ST[StorageService (session state, assets)]
-        MM[MultimodalLiveBridge (WebSocket to Gemini Live)]
+        B["FastAPI Service"]
+        SA["StoryAgent (primary: Gemini)"]
+        IMG["ImageGenService (optional: Imagen 3)"]
+        VE["VideoEngine (ffmpeg, Pillow)"]
+        ST["StorageService (session state, assets)"]
+        MM["MultimodalLiveBridge (WebSocket to Gemini Live)"]
     end
 
     %% Managed GCP services
     subgraph GCP[Google Cloud Services]
-        GCS[(GCS Bucket: sketches, images, audio, movies)]
-        VA[Vertex AI Imagen 3 (fallback)]
-        GEM[Gemini API (text + vision + Live)]
-        SM[Secret Manager GEMINI_API_KEY]
+        GCS["GCS Bucket: sketches, images, audio, movies"]
+        VA["Vertex AI Imagen 3 (fallback)"]
+        GEM["Gemini API (text + vision + Live)"]
+        SM["Secret Manager GEMINI_API_KEY"]
     end
 
-    %% Flow: top → bottom
+    %% Flow: top to bottom
     U --> F
-    F -->|REST & WebSocket| B
+    F -->|REST and WebSocket| B
 
-    %% Backend → Gemini (primary)
+    %% Backend to Gemini (primary)
     B --> SA
     SA --> GEM
 
-    %% Backend → Imagen (explicit fallback)
+    %% Backend to Imagen (explicit fallback)
     B --> IMG
     IMG -. optional fallback .-> VA
 
@@ -58,7 +58,7 @@ flowchart TB
     B --> MM
     MM --> GEM
 
-    %% Config / secrets
+    %% Config and secrets
     SM --> B
 ```
 
