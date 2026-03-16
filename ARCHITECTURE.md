@@ -50,10 +50,9 @@ flowchart TB
     B --> ST
     ST --> GCS
 
-    %% Video assembly
+    %% Video assembly (via StorageService)
     B --> VE
     VE --> ST
-    VE --> GCS
 
     %% Live multimodal
     B --> MM
